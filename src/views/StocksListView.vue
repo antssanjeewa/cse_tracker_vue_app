@@ -1,25 +1,107 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import DashboardLayout from '../components/layouts/DashboardLayout.vue'
-import { Filter, Search, ChevronDown, Download, Grid, List as ListIcon, RefreshCw, Calculator, LayoutPanelTop, LayoutGrid, Trash2, Plus } from 'lucide-vue-next'
+import { Filter, Search, ChevronDown, Download, Grid, List as ListIcon, RefreshCw, Calculator, LayoutPanelTop, LayoutGrid, Trash2, Plus, Loader2 } from 'lucide-vue-next'
 
-const stocks = ref([
-  { code: 'SCAP.N0000', name: 'SOFTLOGIC CAPITAL PLC', sector: 'Insurance', type: 'Regular', prevClose: '12.70', open: '12.90', high: '14.30', low: '11.60', close: '12.20', change: '-0.50', changePct: '-3.94%', range: '11.60-14.30', vwap: '13.38', trades: '1,737', volume: '24,146,759', to: '323.04M', adj: '7.77%', sp: 'All' },
-  { code: 'ACL.N0000', name: 'ACL CABLES PLC', sector: 'Capital Goods', type: 'Regular', prevClose: '87.50', open: '88.00', high: '89.40', low: '81.80', close: '82.80', change: '-4.70', changePct: '-5.37%', range: '81.80-89.40', vwap: '85.12', trades: '909', volume: '2,403,988', to: '204.62M', adj: '4.92%', sp: 'All' },
-  { code: 'PLR.N0000', name: 'PRIME LANDS RESIDENCIES PLC', sector: 'Real Estate Management...', type: 'Regular', prevClose: '46.90', open: '46.50', high: '49.00', low: '42.00', close: '43.00', change: '-3.90', changePct: '-8.32%', range: '42.00-49.00', vwap: '45.91', trades: '1,544', volume: '4,033,738', to: '185.20M', adj: '4.46%', sp: 'All' },
-  { code: 'SAMP.N0000', name: 'SAMPATH BANK PLC', sector: 'Banks', type: 'Regular', prevClose: '150.00', open: '150.00', high: '152.50', low: '149.00', close: '149.50', change: '-0.50', changePct: '-0.33%', range: '149.00-152.50', vwap: '150.12', trades: '1,488', volume: '1,148,198', to: '171.16M', adj: '4.12%', sp: 'All' },
-  { code: 'JKH.N0000', name: 'JOHN KEELLS HOLDINGS PLC', sector: 'Capital Goods', type: 'Regular', prevClose: '19.30', open: '19.20', high: '19.30', low: '18.90', close: '18.90', change: '-0.40', changePct: '-2.07%', range: '18.90-19.30', vwap: '19.08', trades: '2,041', volume: '8,856,912', to: '169.03M', adj: '4.07%', sp: 'All' },
-  { code: 'SHL.N0000', name: 'SOFTLOGIC HOLDINGS PLC', sector: 'Capital Goods', type: 'Regular', prevClose: '11.70', open: '11.90', high: '12.80', low: '10.40', close: '10.40', change: '-1.30', changePct: '-11.11%', range: '10.40-12.80', vwap: '12.08', trades: '1,189', volume: '13,219,762', to: '159.74M', adj: '3.84%', sp: 'All' },
-  { code: 'AEL.N0000', name: 'ACCESS ENGINEERING PLC', sector: 'Capital Goods', type: 'Regular', prevClose: '69.50', open: '68.70', high: '70.00', low: '64.50', close: '64.90', change: '-4.60', changePct: '-6.62%', range: '64.50-70.00', vwap: '67.53', trades: '770', volume: '1,982,116', to: '133.84M', adj: '3.22%', sp: 'All' },
-  { code: 'COMB.N0000', name: 'COMMERCIAL BANK OF CEYLON PLC', sector: 'Banks', type: 'Regular', prevClose: '196.75', open: '196.75', high: '200.00', low: '191.00', close: '192.50', change: '-4.25', changePct: '-2.16%', range: '191.00-200.00', vwap: '196.37', trades: '1,433', volume: '671,752', to: '131.91M', adj: '3.17%', sp: 'All' },
-])
+const stocks = ref([])
+const isLoading = ref(true)
+const error = ref(null)
+
+const fetchStocks = async () => {
+  isLoading.value = true
+  error.value = null
+  try {
+    const response = await fetch('/api/tradeSummary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: '',
+      credentials: 'omit'
+    })
+
+    if (!response.ok) throw new Error('Failed to fetch data')
+    
+    const data = await response.json()
+    
+    // Map API data to our table structure
+    // Based on CSE API: res.reqTradeSummery is the array
+    if (data && data.reqTradeSummery) {
+      stocks.value = data.reqTradeSummery.map(item => ({
+        code: item.symbol || 'N/A',
+        name: item.name || item.symbol || 'N/A',
+        sector: item.sector || 'N/A',
+        type: item.type || 'Regular',
+        prevClose: (item.previousClose || 0).toFixed(2),
+        open: (item.open || 0).toFixed(2),
+        high: (item.high || 0).toFixed(2),
+        low: (item.low || 0).toFixed(2),
+        close: (item.lastTradedPrice || item.price || 0).toFixed(2),
+        change: (item.change || 0).toFixed(2),
+        changePct: (item.changePercentage || 0).toFixed(2) + '%',
+        range: `${(item.low || 0).toFixed(2)}-${(item.high || 0).toFixed(2)}`,
+        vwap: (item.vwap || 0).toFixed(2),
+        trades: (item.tradeCount || 0).toLocaleString(),
+        volume: (item.tradeVolume || 0).toLocaleString(),
+        to: formatTurnover(item.turnover || 0),
+        adj: '0.00%',
+        sp: 'All'
+      }))
+    }
+  } catch (e) {
+    console.error('Fetch error:', e)
+    error.value = 'Could not load market data. Please try again later.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const formatTurnover = (value) => {
+  if (value >= 1000000000) return (value / 1000000000).toFixed(2) + 'B'
+  if (value >= 1000000) return (value / 1000000).toFixed(2) + 'M'
+  return value.toLocaleString()
+}
+
+onMounted(() => {
+  fetchStocks()
+})
 
 const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = ref(15)
+
 const filteredStocks = computed(() => {
+  const query = searchQuery.value.toLowerCase()
   return stocks.value.filter(s => 
-    s.code.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    s.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    s.code.toLowerCase().includes(query) ||
+    s.name.toLowerCase().includes(query)
   )
+})
+
+const totalPages = computed(() => Math.ceil(filteredStocks.value.length / itemsPerPage.value))
+
+const paginatedStocks = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredStocks.value.slice(start, end)
+})
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) currentPage.value++
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) currentPage.value--
+}
+
+const setPage = (page) => {
+  currentPage.value = page
+}
+
+// Reset to page 1 when search or itemsPerPage changes
+import { watch } from 'vue'
+watch([searchQuery, itemsPerPage], () => {
+  currentPage.value = 1
 })
 </script>
 
@@ -40,8 +122,13 @@ const filteredStocks = computed(() => {
              <option>1D</option>
            </select>
         </div>
-        <button class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-3 py-1.5 rounded flex items-center gap-2 uppercase transition-all shadow-lg active:scale-95">
-          <RefreshCw class="w-3 h-3" /> LOAD
+        <button 
+          @click="fetchStocks"
+          :disabled="isLoading"
+          class="bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] px-3 py-1.5 rounded flex items-center gap-2 uppercase transition-all shadow-lg active:scale-95 disabled:opacity-50"
+        >
+          <RefreshCw class="w-3 h-3" :class="{ 'animate-spin': isLoading }" /> 
+          {{ isLoading ? 'LOADING...' : 'LOAD' }}
         </button>
 
         <div class="flex-1 flex justify-center">
@@ -91,7 +178,25 @@ const filteredStocks = computed(() => {
       </div>
 
       <!-- Table Content Area -->
-      <div class="flex-1 overflow-x-auto custom-scrollbar bg-[#0c1221]">
+      <div class="flex-1 overflow-x-auto custom-scrollbar bg-[#0c1221] relative min-h-[400px]">
+        <!-- Loading State -->
+        <div v-if="isLoading" class="absolute inset-0 z-20 bg-[#0c1221]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <div class="relative">
+            <Loader2 class="w-12 h-12 text-indigo-500 animate-spin" />
+            <div class="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full"></div>
+          </div>
+          <p class="text-xs font-bold text-indigo-400 uppercase tracking-widest animate-pulse">Fetching real-time market data...</p>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="absolute inset-0 z-20 bg-[#0c1221]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+          <div class="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex flex-col items-center gap-3 max-w-md text-center">
+            <Trash2 class="w-8 h-8 text-rose-500" />
+            <p class="text-sm font-bold text-rose-400 uppercase tracking-tight">{{ error }}</p>
+            <button @click="fetchStocks" class="px-6 py-2 bg-rose-600 text-white text-xs font-black rounded-lg hover:bg-rose-500 transition-all">TRY AGAIN</button>
+          </div>
+        </div>
+
         <table class="w-full text-left border-collapse table-auto min-w-[1800px]">
           <thead class="bg-[#162136] text-[9px] font-black text-slate-500 uppercase tracking-tighter sticky top-0 z-10 border-b border-white/10">
             <tr>
@@ -122,25 +227,32 @@ const filteredStocks = computed(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5 font-mono">
-            <tr v-for="stock in filteredStocks" :key="stock.code" class="hover:bg-white/5 transition-colors group cursor-pointer text-xs font-bold leading-none">
-              <td class="px-4 py-3 border-r border-white/5 text-amber-500">{{ stock.code }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-slate-300 uppercase overflow-hidden whitespace-nowrap">{{ stock.name }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-slate-500">{{ stock.sector }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-slate-500 uppercase">{{ stock.type }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.prevClose }}</td>
-              <td class="px-2 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.open }}</td>
-              <td class="px-2 py-3 border-r border-white/5 text-right text-emerald-500">{{ stock.high }}</td>
-              <td class="px-2 py-3 border-r border-white/5 text-right text-rose-500">{{ stock.low }}</td>
-              <td class="px-2 py-3 border-r border-white/5 text-right">{{ stock.close }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right bg-rose-900/10 text-rose-500">{{ stock.change }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-center text-rose-500 border-b-2 border-amber-900/30">{{ stock.changePct }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-slate-400 whitespace-nowrap">{{ stock.range }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.vwap }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.trades }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.volume }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-amber-500">{{ stock.to }}</td>
-              <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.adj }}</td>
-              <td class="px-4 py-3 text-slate-500">{{ stock.sp }}</td>
+            <template v-if="paginatedStocks.length > 0">
+              <tr v-for="stock in paginatedStocks" :key="stock.code" class="hover:bg-white/5 transition-colors group cursor-pointer text-xs font-bold leading-none">
+                <td class="px-4 py-3 border-r border-white/5 text-amber-500">{{ stock.code }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-slate-300 uppercase overflow-hidden whitespace-nowrap">{{ stock.name }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-slate-500">{{ stock.sector }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-slate-500 uppercase">{{ stock.type }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.prevClose }}</td>
+                <td class="px-2 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.open }}</td>
+                <td class="px-2 py-3 border-r border-white/5 text-right text-emerald-500">{{ stock.high }}</td>
+                <td class="px-2 py-3 border-r border-white/5 text-right text-rose-500">{{ stock.low }}</td>
+                <td class="px-2 py-3 border-r border-white/5 text-right text-white">{{ stock.close }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right bg-white/5" :class="parseFloat(stock.change) < 0 ? 'text-rose-500' : 'text-emerald-500'">{{ stock.change }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-center border-b-2 border-amber-900/30" :class="parseFloat(stock.change) < 0 ? 'text-rose-500' : 'text-emerald-500'">{{ stock.changePct }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-slate-400 whitespace-nowrap">{{ stock.range }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.vwap }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.trades }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.volume }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-amber-500">{{ stock.to }}</td>
+                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.adj }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ stock.sp }}</td>
+              </tr>
+            </template>
+            <tr v-else-if="!isLoading">
+              <td colspan="18" class="p-20 text-center">
+                <p class="text-slate-500 font-bold uppercase tracking-widest text-xs">No matching stocks found.</p>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -149,18 +261,62 @@ const filteredStocks = computed(() => {
       <!-- Footer / Info Bar -->
       <div class="h-10 bg-[#121a2c] border-t border-white/10 flex items-center justify-between px-6 shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-500">
         <div class="flex items-center gap-6">
-           <span>SHOW: 10 ROWS</span>
-           <span>1-20 OF 218</span>
+           <div class="flex items-center gap-2">
+              <span>SHOW:</span>
+              <select 
+                v-model="itemsPerPage"
+                class="bg-slate-900 border border-white/10 rounded px-1 focus:ring-0 text-[10px] font-black text-amber-500 cursor-pointer"
+              >
+                <option :value="10">10 ROWS</option>
+                <option :value="15">15 ROWS</option>
+                <option :value="30">30 ROWS</option>
+                <option :value="50">50 ROWS</option>
+                <option :value="stocks.length">ALL DATA</option>
+              </select>
+           </div>
+           <span>{{ ((currentPage - 1) * itemsPerPage) + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredStocks.length) }} OF {{ filteredStocks.length }}</span>
         </div>
         <div class="flex items-center gap-4">
-           <span class="text-amber-500 flex items-center gap-1"><div class="w-3 h-3 border border-amber-500/30 rounded"></div> SELECTED: COUNT: 12</span>
-           <span class="text-white">Sum: -38.50</span>
-           <div class="flex">
-              <button class="w-8 h-8 bg-indigo-600 text-white rounded">1</button>
-              <button class="w-8 h-8 hover:text-white transition-colors">2</button>
-              <button class="w-8 h-8 hover:text-white transition-colors">3</button>
-              <span class="px-2">...</span>
-              <button class="w-8 h-8 hover:text-white transition-colors">11</button>
+           <span class="text-amber-500 flex items-center gap-1"><div class="w-2.5 h-2.5 border border-amber-500/30 rounded"></div> SELECTED: 0</span>
+           <div class="flex items-center gap-1">
+              <button 
+                @click="prevPage" 
+                :disabled="currentPage === 1"
+                class="w-7 h-7 flex items-center justify-center hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
+                title="Previous Page"
+              >
+                &lsaquo;
+              </button>
+              
+              <div class="flex">
+                <button 
+                  v-for="p in Math.min(totalPages, 5)" 
+                  :key="p"
+                  @click="setPage(p)"
+                  class="w-7 h-7 flex items-center justify-center rounded text-[10px] font-black transition-all"
+                  :class="currentPage === p ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:text-white'"
+                >
+                  {{ p }}
+                </button>
+                <span v-if="totalPages > 5" class="px-1 py-1">...</span>
+                <button 
+                  v-if="totalPages > 5"
+                  @click="setPage(totalPages)"
+                  class="w-7 h-7 flex items-center justify-center rounded text-[10px] font-black transition-all"
+                  :class="currentPage === totalPages ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'hover:text-white'"
+                >
+                  {{ totalPages }}
+                </button>
+              </div>
+
+              <button 
+                @click="nextPage" 
+                :disabled="currentPage === totalPages"
+                class="w-7 h-7 flex items-center justify-center hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-colors"
+                title="Next Page"
+              >
+                &rsaquo;
+              </button>
            </div>
         </div>
       </div>
