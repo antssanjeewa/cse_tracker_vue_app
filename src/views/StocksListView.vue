@@ -8,7 +8,97 @@ import { useMarketStore } from '../stores/marketStore'
 const router      = useRouter()
 const marketStore = useMarketStore()
 
-// ── Load data on mount; skip if already cached ─────────────────────────────────
+// ── Column tab groups ─────────────────────────────────────────────────────────────────
+const activeColumnTab = ref('daily')
+
+const columnGroups = {
+  daily: [
+    { key: 'code',      label: 'Company',     align: '',            px: 'px-4' },
+    { key: 'name',      label: 'Name',         align: '',            px: 'px-4' },
+    { key: 'sector',    label: 'Sector',       align: '',            px: 'px-4' },
+    { key: 'prevClose', label: 'Prev Close',   align: 'text-right',  px: 'px-4' },
+    { key: 'open',      label: 'Open',         align: 'text-right',  px: 'px-2' },
+    { key: 'high',      label: 'High',         align: 'text-right',  px: 'px-2', color: 'emerald' },
+    { key: 'low',       label: 'Low',          align: 'text-right',  px: 'px-2', color: 'rose' },
+    { key: 'close',     label: 'Close',        align: 'text-right',  px: 'px-2' },
+    { key: 'change',    label: 'Change',       align: 'text-right',  px: 'px-4', highlight: true, colorByValue: true },
+    { key: 'changePct', label: 'Change %',     align: 'text-center', px: 'px-4', colorByValue: true },
+    { key: 'range',     label: 'Range',        align: '',            px: 'px-4' },
+    { key: 'trades',    label: 'Trades',       align: 'text-right',  px: 'px-4' },
+    { key: 'volume',    label: 'Volume',       align: 'text-right',  px: 'px-4' },
+    { key: 'to',        label: 'Turnover',     align: 'text-right',  px: 'px-4', last: true },
+  ],
+  overview: [
+    { key: 'code',      label: 'Company',     align: '',            px: 'px-4' },
+    { key: 'name',      label: 'Name',         align: '',            px: 'px-4' },
+    { key: 'sector',    label: 'Sector',       align: '',            px: 'px-4' },
+    { key: 'close',     label: 'Close',        align: 'text-right',  px: 'px-2' },
+    { key: 'change',    label: 'Change',       align: 'text-right',  px: 'px-4', highlight: true, colorByValue: true },
+    { key: 'changePct', label: 'Change %',     align: 'text-center', px: 'px-4', colorByValue: true },
+    { key: 'mktCap',    label: 'Mkt Cap',      align: 'text-right',  px: 'px-4' },
+    { key: 'peRatio',   label: 'P/E Ratio',    align: 'text-right',  px: 'px-4' },
+    { key: 'divYield',  label: 'Div Yield',    align: 'text-right',  px: 'px-4' },
+    { key: 'to',        label: 'Turnover',     align: 'text-right',  px: 'px-4' },
+    { key: 'rsi',       label: 'RSI',          align: 'text-right',  px: 'px-4', rsi: true, last: true },
+  ],
+  performance: [
+    { key: 'code',           label: 'Company',  align: '',            px: 'px-4' },
+    { key: 'name',           label: 'Name',      align: '',            px: 'px-4' },
+    { key: 'close',          label: 'Close',     align: 'text-right',  px: 'px-2' },
+    { key: 'changePct',      label: 'Today',     align: 'text-center', px: 'px-4', colorByValue: true },
+    { key: 'perf1w',         label: '1 Week',    align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'perf1m',         label: '1 Month',   align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'perf3m',         label: '3 Months',  align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'perf6m',         label: '6 Months',  align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'perfYtd',        label: 'YTD',       align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'perf1y',         label: '1 Year',    align: 'text-right',  px: 'px-4', colorByValue: true },
+    { key: 'rsi',            label: 'RSI',       align: 'text-right',  px: 'px-4', rsi: true },
+    { key: 'recommendation', label: 'Signal',    align: 'text-center', px: 'px-4', signal: true, last: true },
+  ]
+}
+
+const activeColumns = computed(() => columnGroups[activeColumnTab.value])
+
+// returns cell CSS class based on column meta + stock value
+const cellClass = (col, stock) => {
+  const val = stock[col.key]
+  if (col.rsi) {
+    const n = Number(val)
+    return n > 70 ? 'text-rose-400' : n < 30 ? 'text-emerald-400' : 'text-slate-400'
+  }
+  if (col.signal) {
+    const n = Number(val)
+    return n > 0.2 ? 'text-emerald-400' : n < -0.2 ? 'text-rose-400' : 'text-slate-400'
+  }
+  if (col.colorByValue) {
+    const n = parseFloat(String(val).replace(/[,%]/g, ''))
+    return n < 0 ? 'text-rose-500' : 'text-emerald-500'
+  }
+  if (col.color === 'emerald') return 'text-emerald-500'
+  if (col.color === 'rose')    return 'text-rose-500'
+  if (col.key === 'code')      return 'text-amber-500'
+  if (col.key === 'name')      return 'text-slate-300 uppercase'
+  if (col.key === 'close')     return 'text-white font-black'
+  if (col.key === 'to')        return 'text-amber-500'
+  return 'text-slate-400'
+}
+
+// returns formatted display value for a cell
+const cellValue = (col, stock) => {
+  const val = stock[col.key]
+  if (col.signal) {
+    const n = Number(val)
+    if (n >  0.5) return 'Strong Buy'
+    if (n >  0.1) return 'Buy'
+    if (n < -0.5) return 'Strong Sell'
+    if (n < -0.1) return 'Sell'
+    return 'Neutral'
+  }
+  if (col.rsi) return val ? Number(val).toFixed(1) : 'N/A'
+  return val ?? 'N/A'
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
 onMounted(() => {
   if (marketStore.allStocks.length === 0) marketStore.fetchFullMarket()
 })
@@ -148,12 +238,24 @@ const setPage  = (p) => { currentPage.value = p }
         </div>
       </div>
 
-      <!-- Sorting Bar -->
-      <div class="bg-[#121a2c]/30 p-3 border-b border-white/5 flex items-center gap-2 overflow-x-auto custom-scrollbar no-scrollbar scroll-smooth">
-         <span class="text-[10px] font-black text-slate-500 uppercase mr-2 shrink-0">Sort</span>
-         <div class="flex gap-1 shrink-0">
-           <button v-for="s in ['Company', 'Company Name', 'Sector', 'Type', 'Prev Close', 'Open', 'High', 'Low', 'Close', 'Change', 'Change %', 'Range', 'VWAP', 'Trades', 'Volume']" :key="s" class="px-3 py-1 bg-white/5 rounded text-[9px] font-bold text-slate-400 hover:text-white border border-white/5 uppercase transition-all whitespace-nowrap">{{ s }}</button>
-         </div>
+      <!-- Column View Tabs -->
+      <div class="bg-[#121a2c]/30 px-4 border-b border-white/5 flex items-center gap-1">
+        <button
+          v-for="tab in [
+            { key: 'daily',       label: 'Daily Changes', desc: 'CSE price data' },
+            { key: 'overview',    label: 'Overview',      desc: 'Fundamentals' },
+            { key: 'performance', label: 'Performance',   desc: 'TradingView returns' },
+          ]"
+          :key="tab.key"
+          @click="activeColumnTab = tab.key; currentPage = 1"
+          class="relative px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2"
+          :class="activeColumnTab === tab.key
+            ? 'text-amber-400 border-amber-400 bg-amber-500/5'
+            : 'text-slate-500 border-transparent hover:text-slate-300 hover:border-white/10'"
+        >
+          {{ tab.label }}
+          <span v-if="activeColumnTab === tab.key" class="ml-2 text-[8px] text-amber-500/70 font-bold normal-case tracking-normal">{{ tab.desc }}</span>
+        </button>
       </div>
 
       <!-- Table Content Area -->
@@ -176,11 +278,11 @@ const setPage  = (p) => { currentPage.value = p }
           </div>
         </div>
 
-        <table class="w-full text-left border-collapse table-auto min-w-[1800px]">
+        <table class="w-full text-left border-collapse table-auto" :class="activeColumnTab === 'performance' ? 'min-w-[1400px]' : 'min-w-[1200px]'">
           <thead class="bg-[#162136] text-[9px] font-black text-slate-500 uppercase tracking-tighter sticky top-0 z-10 border-b border-white/10">
             <tr>
               <th
-                v-for="col in columns"
+                v-for="col in activeColumns"
                 :key="col.key"
                 :class="[
                   col.px, 'py-3 border-r border-white/5',
@@ -198,51 +300,40 @@ const setPage  = (p) => { currentPage.value = p }
                 >
                   <span>{{ col.label }}</span>
                   <span class="flex flex-col leading-[0] ml-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <ChevronUp
-                      class="w-2.5 h-2.5"
-                      :class="sortKey === col.key && sortDir === 'asc' ? 'text-amber-400 opacity-100' : 'text-slate-600'"
-                    />
-                    <ChevronDown
-                      class="w-2.5 h-2.5"
-                      :class="sortKey === col.key && sortDir === 'desc' ? 'text-amber-400 opacity-100' : 'text-slate-600'"
-                    />
+                    <ChevronUp  class="w-2.5 h-2.5" :class="sortKey === col.key && sortDir === 'asc'  ? 'text-amber-400 opacity-100' : 'text-slate-600'" />
+                    <ChevronDown class="w-2.5 h-2.5" :class="sortKey === col.key && sortDir === 'desc' ? 'text-amber-400 opacity-100' : 'text-slate-600'" />
                   </span>
                 </div>
               </th>
             </tr>
             <!-- Sub-header Filter Inputs -->
             <tr class="bg-[#121c33]/50 border-b border-white/5">
-              <td v-for="i in 18" :key="i" class="p-1 px-4 border-r border-white/5">
+              <td v-for="col in activeColumns" :key="col.key" class="p-1 px-4 border-r border-white/5">
                 <input placeholder="Filter..." class="w-full bg-transparent border-none focus:ring-0 text-[8px] font-bold uppercase p-1">
               </td>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5 font-mono">
             <template v-if="paginatedStocks.length > 0">
-              <tr v-for="stock in paginatedStocks" :key="stock.code" @click="router.push(`/stock/${stock.code}`)" class="hover:bg-indigo-600/5 group cursor-pointer transition-all text-xs font-bold leading-none border-b border-white/5">
-                <td class="px-4 py-3 border-r border-white/5 text-amber-500">{{ stock.code }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-slate-300 uppercase overflow-hidden whitespace-nowrap">{{ stock.name }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-slate-500">{{ stock.sector }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-slate-500 uppercase">{{ stock.type }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.prevClose }}</td>
-                <td class="px-2 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.open }}</td>
-                <td class="px-2 py-3 border-r border-white/5 text-right text-emerald-500">{{ stock.high }}</td>
-                <td class="px-2 py-3 border-r border-white/5 text-right text-rose-500">{{ stock.low }}</td>
-                <td class="px-2 py-3 border-r border-white/5 text-right text-white">{{ stock.close }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-right bg-white/5" :class="parseFloat(stock.change) < 0 ? 'text-rose-500' : 'text-emerald-500'">{{ stock.change }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-center border-b-2 border-amber-900/30" :class="parseFloat(stock.change) < 0 ? 'text-rose-500' : 'text-emerald-500'">{{ stock.changePct }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-slate-400 whitespace-nowrap">{{ stock.range }}</td>
-                <!-- TradingView Performance Data -->
-                <td class="px-4 py-3 border-r border-white/5 text-right font-mono" :class="String(stock.perf1w).startsWith('-') ? 'text-rose-500' : 'text-emerald-500'">{{ stock.perf1w ?? 'N/A' }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-right font-mono" :class="String(stock.perf1m).startsWith('-') ? 'text-rose-500' : 'text-emerald-500'">{{ stock.perf1m ?? 'N/A' }}</td>
-                <!-- CSE Data -->
-                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.trades }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-300">{{ stock.volume }}</td>
-                <td class="px-4 py-3 border-r border-white/5 text-right text-amber-500">{{ stock.to }}</td>
-                <!-- TradingView Overview Data -->
-                <td class="px-4 py-3 border-r border-white/5 text-right text-slate-400">{{ stock.mktCap }}</td>
-                <td class="px-4 py-3 text-right font-mono text-[10px]" :class="stock.rsi > 70 ? 'text-rose-400' : stock.rsi < 30 ? 'text-emerald-400' : 'text-slate-400'">{{ stock.rsi ? Number(stock.rsi).toFixed(1) : 'N/A' }}</td>
-                <td class="px-4 py-3 text-slate-500">{{ stock.sp }}</td>
+              <tr
+                v-for="stock in paginatedStocks"
+                :key="stock.code"
+                @click="router.push(`/stock/${stock.code}`)"
+                class="hover:bg-indigo-600/5 group cursor-pointer transition-all text-xs font-bold leading-none border-b border-white/5"
+              >
+                <td
+                  v-for="col in activeColumns"
+                  :key="col.key"
+                  :class="[
+                    col.px, 'py-3 border-r border-white/5',
+                    col.last ? 'border-r-0' : '',
+                    col.highlight ? 'bg-white/5' : '',
+                    col.align,
+                    cellClass(col, stock)
+                  ]"
+                >
+                  {{ cellValue(col, stock) }}
+                </td>
               </tr>
             </template>
             <tr v-else-if="!marketStore.isLoading">
