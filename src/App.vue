@@ -1,9 +1,9 @@
 <script setup>
-import LoginPage from './views/LoginPage.vue'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <LoginPage />
+  <RouterView />
 </template>
 
 <style>
@@ -12,5 +12,10 @@ import LoginPage from './views/LoginPage.vue'
   width: 100%;
   margin: 0;
   padding: 0;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
 }
 </style>

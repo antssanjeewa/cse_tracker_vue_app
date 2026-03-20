@@ -1,10 +1,13 @@
 <script setup>
 import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { Mail, Lock, LogIn } from 'lucide-vue-next'
 import BaseInput from '../atoms/BaseInput.vue'
 import BaseButton from '../atoms/BaseButton.vue'
 import BaseCheckbox from '../atoms/BaseCheckbox.vue'
 import SocialLogins from '../molecules/SocialLogins.vue'
+
+const router = useRouter()
 
 const formData = reactive({
   email: '',
@@ -41,10 +44,11 @@ const handleLogin = async () => {
   
   // Simulate login
   isLoading.value = true
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  await new Promise(resolve => setTimeout(resolve, 1500))
   isLoading.value = false
   
-  console.log('Login attempt:', formData)
+  console.log('Login successful! Redirecting...')
+  router.push('/dashboard')
 }
 </script>
 
