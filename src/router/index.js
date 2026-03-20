@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'stocks',
       component: () => import('../views/StocksListView.vue'),
     },
+    {
+      path: '/stock/:symbol',
+      name: 'stock-details',
+      component: () => import('../views/StockDetailsView.vue'),
+    },
   ],
 })
 

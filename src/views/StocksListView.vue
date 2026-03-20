@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardLayout from '../components/layouts/DashboardLayout.vue'
 import { Filter, Search, ChevronDown, Download, Grid, List as ListIcon, RefreshCw, Calculator, LayoutPanelTop, LayoutGrid, Trash2, Plus, Loader2 } from 'lucide-vue-next'
 
+const router = useRouter()
 const stocks = ref([])
 const isLoading = ref(true)
 const error = ref(null)
@@ -228,7 +230,7 @@ watch([searchQuery, itemsPerPage], () => {
           </thead>
           <tbody class="divide-y divide-white/5 font-mono">
             <template v-if="paginatedStocks.length > 0">
-              <tr v-for="stock in paginatedStocks" :key="stock.code" class="hover:bg-white/5 transition-colors group cursor-pointer text-xs font-bold leading-none">
+              <tr v-for="stock in paginatedStocks" :key="stock.code" @click="router.push(`/stock/${stock.code}`)" class="hover:bg-indigo-600/5 group cursor-pointer transition-all text-xs font-bold leading-none border-b border-white/5">
                 <td class="px-4 py-3 border-r border-white/5 text-amber-500">{{ stock.code }}</td>
                 <td class="px-4 py-3 border-r border-white/5 text-slate-300 uppercase overflow-hidden whitespace-nowrap">{{ stock.name }}</td>
                 <td class="px-4 py-3 border-r border-white/5 text-slate-500">{{ stock.sector }}</td>
