@@ -12,6 +12,7 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
   ],
+  base: '/cse_tracker_vue_app/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
