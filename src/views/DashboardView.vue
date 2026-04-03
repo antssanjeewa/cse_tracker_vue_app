@@ -1,112 +1,127 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
-import { 
-  TrendingUp, 
-  Activity, 
-  Maximize2,
-  LayoutGrid,
-  Loader2
-} from 'lucide-vue-next'
-import VueApexCharts from 'vue3-apexcharts'
+import { onMounted } from 'vue'
 import { useMarketStore } from '@/stores/marketStore'
-import MarketStatCard from '@/components/molecules/MarketStatCard.vue'
-import { 
-  DashboardSidebar, 
-  MiniStockTable, 
-  useDashboardCharts 
-} from '@/features/dashboard'
+import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
+import { BarChart3, TrendingUp, TrendingDown, Users, Activity, Clock, Zap } from 'lucide-vue-next'
+import MiniStockTable from '@/features/dashboard/components/MiniStockTable.vue'
 
 const marketStore = useMarketStore()
-const selectedInterval = ref('30m')
-const selectedTime = ref('10:30-11:00')
-const activeTab = ref('TOP T/O')
-
-const timeIntervals = [
-  '09:30-10:00', '10:00-10:30', '10:30-11:00', '11:00-11:30', 
-  '11:30-12:00', '12:00-12:30', '12:30-13:00', '13:00-13:30', '13:30-14:00'
-]
-
-const {
-  treemapSeries,
-  treemapOptions,
-  horizontalBarSeries,
-  horizontalBarOptions
-} = useDashboardCharts(marketStore)
-
-const activeStockData = computed(() => {
-  const list = activeTab.value === 'GAINERS' ? marketStore.gainers : (activeTab.value === 'LOSERS' ? marketStore.losers : marketStore.topTo)
-  return list.slice(0, 10).map(i => ({
-    code: i.symbol,
-    ltp: (i.price || 0).toFixed(2),
-    to: marketStore.formatCurrency(i.turnover || 0),
-    chg: activeTab.value === 'TOP T/O' ? (i.tradeCount ? marketStore.formatNumber(i.tradeCount) + ' trades' : 'N/A') : (i.changePercentage || 0).toFixed(2) + '%'
-  }))
-})
 
 onMounted(() => {
   marketStore.fetchDashboardData()
 })
+
+const formatCurrency = (val) => marketStore.formatCurrency(val)
+const formatNumber = (val) => marketStore.formatNumber(val)
 </script>
 
 <template>
   <DashboardLayout>
-    <div class="flex h-[calc(100vh-64px)] overflow-hidden relative">
-      <!-- Global Loading State -->
-      <div v-if="marketStore.isLoading" class="absolute inset-0 z-50 bg-[#0b0f1a]/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-        <Loader2 class="w-16 h-16 text-indigo-500 animate-spin" />
-        <p class="text-xs font-bold text-indigo-400 uppercase tracking-widest">Syncing Market Intelligence...</p>
+    <div class="p-6 max-w-[1600px] mx-auto min-h-screen bg-[#0c1221]">
+      <!-- Title & Live Indicator -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex flex-col">
+          <h1 class="text-3xl font-black text-white flex items-center gap-3 tracking-tighter italic uppercase">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center not-italic rotate-3">
+               <Zap class="w-6 h-6 text-white" />
+            </div>
+            Market Terminal
+          </h1>
+          <div class="flex items-center gap-2 mt-2">
+            <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+            <span class="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Live Market Feed — Colombo Stock Exchange</span>
+          </div>
+        </div>
+        <div class="hidden md:flex flex-col items-end">
+          <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Last Synced</span>
+          <span class="text-xs font-mono text-white/70">{{ new Date().toLocaleTimeString() }}</span>
+        </div>
       </div>
 
-      <DashboardSidebar 
-        v-model:selectedInterval="selectedInterval"
-        v-model:selectedTime="selectedTime"
-        :timeIntervals="timeIntervals"
-        @refresh="marketStore.fetchDashboardData"
-      />
+      <!-- High-Impact Summary Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+        <div v-for="stat in marketStore.stats" :key="stat.label" 
+             class="bg-[#121a2c]/60 backdrop-blur-xl border border-white/5 p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-all">
+          <div class="flex items-center justify-between mb-3">
+             <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">{{ stat.label }}</span>
+             <Activity class="w-4 h-4 text-slate-500" />
+          </div>
+          <div class="flex flex-col">
+             <h3 class="text-2xl font-black text-white tracking-tight">{{ stat.value }}</h3>
+             <div class="flex items-center gap-1.5 mt-2">
+                <span class="text-[10px] font-bold p-1 px-2 rounded-lg" 
+                      :class="stat.subValue.includes('+') || stat.subValue.includes('VOL') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'">
+                  {{ stat.subValue }}
+                </span>
+             </div>
+          </div>
+          <div class="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:scale-110 transition-transform"><Zap class="w-32 h-32 text-indigo-500" /></div>
+        </div>
+      </div>
 
-      <div class="flex-1 bg-[#0b0f1a] p-4 overflow-y-auto">
-        <!-- Summary Stats Row -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <MarketStatCard 
-            v-for="stat in marketStore.stats" 
-            :key="stat.label" 
-            :label="stat.label" 
-            :value="stat.value" 
-            :sub-value="stat.subValue" 
-            :icon-name="stat.icon" 
-          />
+      <!-- Main Market Layout -->
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Center Piece: Gainers & Losers -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6 xl:col-span-2">
+          
+          <!-- Top Gainers -->
+          <div class="bg-[#121a2c]/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-white/5 flex items-center justify-between bg-emerald-500/5">
+               <h3 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <div class="p-1 px-2 rounded bg-emerald-500 text-[10px] text-emerald-950">BULLS</div>
+                  High Relative Strength
+               </h3>
+               <TrendingUp class="w-4 h-4 text-emerald-500" />
+            </div>
+            <MiniStockTable :stocks="marketStore.gainers.slice(0, 5)" type="gain" />
+          </div>
+
+          <!-- Top Losers -->
+          <div class="bg-[#121a2c]/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+            <div class="p-5 border-b border-white/5 flex items-center justify-between bg-rose-500/5">
+                <h3 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <div class="p-1 px-2 rounded bg-rose-500 text-[10px] text-rose-950">BEARS</div>
+                  Selling Pressure
+               </h3>
+               <TrendingDown class="w-4 h-4 text-rose-500" />
+            </div>
+            <MiniStockTable :stocks="marketStore.losers.slice(0, 5)" type="loss" />
+          </div>
         </div>
 
-        <div class="grid grid-cols-12 gap-4">
-          <!-- Turnover Treemap -->
-          <div class="col-span-12 lg:col-span-4 bg-[#151c2c] border border-white/5 p-4 rounded-xl">
-             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xs font-black text-white uppercase flex items-center gap-2"><TrendingUp class="w-3.5 h-3.5 text-amber-500" /> Turnover (Top 10)</h2>
-                <div class="flex gap-1"><button class="p-1 px-2 text-[10px] bg-indigo-600 rounded text-white"><LayoutGrid class="w-3 h-3"/></button></div>
-             </div>
-             <div class="h-64">
-                <VueApexCharts type="treemap" :options="treemapOptions" :series="treemapSeries" :key="treemapSeries[0].data.length" height="100%" />
-             </div>
-          </div>
+        <!-- Sidebar: Market Breadth & High Active -->
+        <div class="flex flex-col gap-6">
+           <!-- Market Breadth Card -->
+           <div class="bg-indigo-600 border border-indigo-500 p-6 rounded-3xl shadow-2xl shadow-indigo-600/20 text-white relative overflow-hidden">
+              <div class="flex items-center justify-between mb-6">
+                 <h2 class="text-xs font-black uppercase tracking-widest">Market Breadth</h2>
+                 <Users class="w-4 h-4 text-white/50" />
+              </div>
+              <div class="flex items-end gap-3 mb-6">
+                 <div class="text-4xl font-black italic">64 <span class="text-lg opacity-50 not-italic">/ 12</span></div>
+                 <span class="text-[9px] font-black uppercase mb-1 bg-white/20 px-2 py-0.5 rounded">Bull Intensity</span>
+              </div>
+              <div class="h-3 bg-white/10 rounded-full flex overflow-hidden border border-white/10">
+                 <div class="h-full bg-emerald-400 w-3/4 shadow-[0_0_15px_rgba(52,211,153,0.5)]"></div>
+                 <div class="h-full bg-rose-400 w-1/4"></div>
+              </div>
+              <div class="flex items-center justify-between mt-3">
+                 <span class="text-[9px] font-black text-white/60">ADVANCERS</span>
+                 <span class="text-[9px] font-black text-white/60 text-right">DECLINERS</span>
+              </div>
+           </div>
 
-          <!-- ASPI Movers -->
-          <div class="col-span-12 lg:col-span-4 bg-[#151c2c] border border-white/5 p-4 rounded-xl">
-             <h2 class="text-xs font-black text-white uppercase flex items-center gap-2 mb-4"><Activity class="w-3.5 h-3.5 text-emerald-500" /> ASPI Movers (%)</h2>
-             <div class="h-64">
-                <VueApexCharts type="bar" :options="horizontalBarOptions" :series="horizontalBarSeries" height="100%" />
-             </div>
-          </div>
-
-          <!-- Stock Side Table -->
-          <div class="col-span-12 lg:col-span-4 bg-[#151c2c] border border-white/5 rounded-xl flex flex-col overflow-hidden">
-            <div class="flex border-b border-white/5 bg-slate-900/50 p-1">
-              <button v-for="tab in ['TOP T/O', 'GAINERS', 'LOSERS']" :key="tab" @click="activeTab = tab"
-                class="flex-1 py-1.5 text-[9px] font-bold rounded transition-all uppercase"
-                :class="activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'">{{ tab }}</button>
-            </div>
-            <MiniStockTable :stocks="activeStockData" :active-tab="activeTab" />
-          </div>
+           <!-- High Turnover Section -->
+           <div class="bg-[#121a2c]/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden">
+              <div class="p-4 border-b border-white/5 flex items-center justify-between">
+                <h3 class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <div class="w-1.5 h-4 bg-amber-500 rounded-full"></div>
+                  High Liquidity Stocks
+                </h3>
+                <Clock class="w-3.5 h-3.5 text-slate-500" />
+              </div>
+              <MiniStockTable :stocks="marketStore.topTo.slice(0, 5)" type="default" />
+           </div>
         </div>
       </div>
     </div>

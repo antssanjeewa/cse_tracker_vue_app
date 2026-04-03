@@ -163,25 +163,32 @@ export const useMarketStore = defineStore('market', () => {
   }
 
   /** Map a CSE tradeSummary item to a flat stock object */
-  const mapCseItem = (item) => ({
-    code: item.symbol || 'N/A',
-    name: item.name || item.symbol || 'N/A',
-    sector: item.sector || 'N/A',
-    type: item.type || 'Regular',
-    prevClose: (item.previousClose || 0).toFixed(2),
-    open: (item.open || 0).toFixed(2),
-    high: (item.high || 0).toFixed(2),
-    low: (item.low || 0).toFixed(2),
-    close: (item.price || item.closingPrice || 0).toFixed(2),
-    change: (item.change || 0).toFixed(2),
-    changePct: (item.percentageChange || 0).toFixed(2) + '%',
-    range: `${(item.low || 0).toFixed(2)} - ${(item.high || 0).toFixed(2)}`,
-    trades: (item.tradevolume || 0).toLocaleString(),
-    volume: (item.sharevolume || 0).toLocaleString(),
-    to: formatTurnover(item.turnover || 0),
-    mktCap: formatTurnover(item.marketCap || 0),
-    sp: 'All'
-  })
+  const mapCseItem = (item) => {
+    if (!item) return { code: 'N/A', symbol: 'N/A', name: 'N/A', price: '0.00', changePct: '0%' }
+    return {
+      code: item.symbol || 'N/A',
+      symbol: item.symbol || 'N/A',
+      name: item.name || item.symbol || 'N/A',
+      sector: item.sector || 'N/A',
+      type: item.type || 'Regular',
+      prevClose: (item.previousClose || 0).toFixed(2),
+      open: (item.open || 0).toFixed(2),
+      high: (item.high || 0).toFixed(2),
+      low: (item.low || 0).toFixed(2),
+      close: (item.price || item.closingPrice || 0).toFixed(2),
+      price: (item.price || item.closingPrice || 0).toFixed(2),
+      change: (item.change || 0).toFixed(2),
+      changePct: (item.percentageChange || 0).toFixed(2) + '%',
+      percentageChange: (item.percentageChange || 0).toFixed(2) + '%',
+      range: `${(item.low || 0).toFixed(2)} - ${(item.high || 0).toFixed(2)}`,
+      trades: (item.tradevolume || 0).toLocaleString(),
+      volume: (item.sharevolume || 0).toLocaleString(),
+      to: formatTurnover(item.turnover || 0),
+      turnover: formatTurnover(item.turnover || 0),
+      mktCap: formatTurnover(item.marketCap || 0),
+      sp: 'All'
+    }
+  }
 
   // ── Public Actions ──────────────────────────────────────────────────────────
 
@@ -214,9 +221,18 @@ export const useMarketStore = defineStore('market', () => {
         stats.value[3].subValue = 'Total Trades'
       }
 
-      if (gainData) gainers.value = Array.isArray(gainData) ? gainData : (gainData.reqTradeSummery || [])
-      if (loseData) losers.value = Array.isArray(loseData) ? loseData : (loseData.reqTradeSummery || [])
-      if (toData) topTo.value = Array.isArray(toData) ? toData : (toData.reqTradeSummery || [])
+      if (gainData) {
+        const raw = Array.isArray(gainData) ? gainData : (gainData.reqTradeSummery || [])
+        gainers.value = raw.map(mapCseItem)
+      }
+      if (loseData) {
+        const raw = Array.isArray(loseData) ? loseData : (loseData.reqTradeSummery || [])
+        losers.value = raw.map(mapCseItem)
+      }
+      if (toData) {
+        const raw = Array.isArray(toData) ? toData : (toData.reqTradeSummery || [])
+        topTo.value = raw.map(mapCseItem)
+      }
     } catch (err) {
       error.value = err.message
     } finally {

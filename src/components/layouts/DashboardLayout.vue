@@ -40,7 +40,7 @@ const handleLogout = () => {
         <nav class="hidden md:flex items-center gap-4 border-r border-white/10 pr-6 mr-1">
           <RouterLink to="/dashboard" class="text-xs font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors" active-class="text-indigo-400">Dashboard</RouterLink>
           <RouterLink to="/stocks" class="text-xs font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors" active-class="text-indigo-400">Stocks</RouterLink>
-          <a href="#" class="text-xs font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors">Portfolio</a>
+          <RouterLink to="/portfolio" class="text-xs font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors" active-class="text-indigo-400">Portfolio</RouterLink>
         </nav>
 
         <div class="flex items-center gap-4">

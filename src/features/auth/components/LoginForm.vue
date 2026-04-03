@@ -2,10 +2,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Mail, Lock, LogIn } from 'lucide-vue-next'
-import BaseInput from '../atoms/BaseInput.vue'
-import BaseButton from '../atoms/BaseButton.vue'
-import BaseCheckbox from '../atoms/BaseCheckbox.vue'
-import SocialLogins from '../molecules/SocialLogins.vue'
+import { supabase } from '@/lib/supabase'
+import BaseInput from '@/components/atoms/BaseInput.vue'
+import BaseButton from '@/components/atoms/BaseButton.vue'
+import BaseCheckbox from '@/components/atoms/BaseCheckbox.vue'
+import SocialLogins from '@/components/molecules/SocialLogins.vue'
 
 const router = useRouter()
 
@@ -17,7 +18,8 @@ const formData = reactive({
 
 const errors = reactive({
   email: '',
-  password: ''
+  password: '',
+  general: ''
 })
 
 const isLoading = ref(false)
@@ -26,6 +28,7 @@ const handleLogin = async () => {
   // Clear errors
   errors.email = ''
   errors.password = ''
+  errors.general = ''
   
   // Basic validation
   if (!formData.email) {
@@ -36,19 +39,33 @@ const handleLogin = async () => {
   
   if (!formData.password) {
     errors.password = 'Password is required'
-  } else if (formData.password.length < 6) {
-    errors.password = 'Password must be at least 6 characters'
   }
   
   if (errors.email || errors.password) return
   
-  // Simulate login
   isLoading.value = true
-  await new Promise(resolve => setTimeout(resolve, 1500))
-  isLoading.value = false
   
-  console.log('Login successful! Redirecting...')
-  router.push('/dashboard')
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password
+    })
+
+    if (error) {
+      errors.general = error.message
+      return
+    }
+
+    if (data.user) {
+      console.log('Login successful! Redirecting...')
+      router.push('/dashboard')
+    }
+  } catch (err) {
+    errors.general = 'An unexpected error occurred. Please try again.'
+    console.error('Login error:', err)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -65,7 +82,19 @@ const handleLogin = async () => {
       <h1 class="text-3xl font-bold text-white tracking-tight">Welcome Back</h1>
       <p class="text-slate-400 font-medium">Please enter your details to sign in</p>
     </div>
-    
+
+    <!-- Error Alert -->
+    <div v-if="errors.general" class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+      <div class="p-1.5 bg-rose-500/20 rounded-lg">
+        <svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <p class="text-xs font-bold text-rose-400 uppercase tracking-tight">{{ errors.general }}</p>
+    </div>
+
     <form @submit.prevent="handleLogin" class="space-y-6">
       <BaseInput
         v-model="formData.email"
