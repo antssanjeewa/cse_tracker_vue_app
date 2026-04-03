@@ -1,13 +1,15 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { usePortfolioStore } from '@/stores/portfolioStore'
 import { useMarketStore } from '@/stores/marketStore'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
-import { PortfolioStats, HoldingsTable, RecentTransactions } from '@/features/portfolio'
+import { PortfolioStats, HoldingsTable, RecentTransactions, AddTransactionModal } from '@/features/portfolio'
 import { Loader2, Plus, Info } from 'lucide-vue-next'
 
 const portfolioStore = usePortfolioStore()
 const marketStore = useMarketStore()
+const isModalOpen = ref(false)
+const filterType = ref('current') // 'all', 'current'
 
 onMounted(async () => {
   await Promise.all([
@@ -17,33 +19,44 @@ onMounted(async () => {
   ])
 })
 
+const handleSaveTransaction = (data) => {
+  console.log('Trade Executed:', data)
+  // TODO: Add real persistence to portfolioStore
+  isModalOpen.value = false
+  // For demo/dev purposes, we could refresh the portfolio
+  portfolioStore.fetchPortfolio()
+}
+
 const enrichedHoldings = computed(() => {
-  return portfolioStore.holdings
-    .filter(h => parseFloat(h.quantity) > 0)
-    .map(h => {
-      const tickerPrefix = (h.stocks?.ticker || '').toUpperCase().split('.')[0]
-      const marketStock = marketStore.allStocks.find(s => 
-        (s.code || '').toUpperCase().split('.')[0] === tickerPrefix
-      )
-      
-      const currentMarketPrice = parseFloat(marketStock?.close || marketStock?.price || h.avg_price)
-      const avgPrice = parseFloat(h.avg_price || 0)
-      const qty = parseFloat(h.quantity || 0)
-      
-      // Calculate live values
-      const currentCost = qty * avgPrice
-      const marketValue = qty * currentMarketPrice
-      const liveProfit = marketValue - currentCost
-      const liveRoi = currentCost > 0 ? (liveProfit / currentCost) * 100 : 0
-      
-      return {
-        ...h,
-        market_price: currentMarketPrice,
-        marketValue,
-        liveProfit,
-        liveRoi
-      }
-    })
+  let list = portfolioStore.holdings
+  if (filterType.value === 'current') {
+    list = list.filter(h => parseFloat(h.quantity) > 0)
+  }
+  
+  return list.map(h => {
+    const tickerPrefix = (h.stocks?.ticker || '').toUpperCase().split('.')[0]
+    const marketStock = marketStore.allStocks.find(s => 
+      (s.code || '').toUpperCase().split('.')[0] === tickerPrefix
+    )
+    
+    const currentMarketPrice = parseFloat(marketStock?.close || marketStock?.price || h.avg_price)
+    const avgPrice = parseFloat(h.avg_price || 0)
+    const qty = parseFloat(h.quantity || 0)
+    
+    // Calculate live values
+    const currentCost = qty * avgPrice
+    const marketValue = qty * currentMarketPrice
+    const liveProfit = marketValue - currentCost
+    const liveRoi = currentCost > 0 ? (liveProfit / currentCost) * 100 : 0
+    
+    return {
+      ...h,
+      market_price: currentMarketPrice,
+      marketValue,
+      liveProfit,
+      liveRoi
+    }
+  })
 })
 </script>
 
@@ -58,11 +71,12 @@ const enrichedHoldings = computed(() => {
             MY PORTFOLIO
           </h1>
           <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-            Tracking {{ portfolioStore.holdings.length }} active positions
+            {{ filterType === 'current' ? 'Active Trading Positions' : 'Full Portfolio History' }} 
+            ({{ enrichedHoldings.length }} items)
           </p>
         </div>
         <div class="flex items-center gap-3 w-full md:w-auto">
-          <button class="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-indigo-600/20 active:translate-y-0.5">
+          <button @click="isModalOpen = true" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-indigo-600/20 active:translate-y-0.5">
             <Plus class="w-4 h-4" /> Add Transaction
           </button>
         </div>
@@ -96,7 +110,7 @@ const enrichedHoldings = computed(() => {
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <!-- Main Holdings Table -->
           <div class="xl:col-span-2">
-            <HoldingsTable :holdings="enrichedHoldings" />
+            <HoldingsTable :holdings="enrichedHoldings" v-model:view="filterType" @addTransaction="isModalOpen = true" />
           </div>
 
           <!-- Recent Transactions Sidebar -->
@@ -105,6 +119,13 @@ const enrichedHoldings = computed(() => {
           </div>
         </div>
       </div>
+
+      <!-- Modals -->
+      <AddTransactionModal 
+        :is-open="isModalOpen" 
+        @close="isModalOpen = false" 
+        @save="handleSaveTransaction" 
+      />
     </div>
   </DashboardLayout>
 </template>
