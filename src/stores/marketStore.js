@@ -2,25 +2,44 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 // ─── TradingView column definitions ────────────────────────────────────────────
-const TV_OVERVIEW_COLS = [
-  'name', 'close', 'change', 'chp', 'volume', 'market_cap_basic',
-  'pe_ratio', 'dividend_yield_recent', 'sector', 'description', 'logoid'
-]
-
-const TV_PERFORMANCE_COLS = [
-  'name', 'perf_1w', 'perf_1m', 'perf_3m', 'perf_6m',
-  'perf_ytd', 'perf_1y', 'RSI', 'EMA20', 'Recommend.All'
+const TV_ALL_COLS = [
+  'ticker-view',
+  'close',
+  'change',
+  'volume',
+  'relative_volume_10d_calc',
+  'market_cap_basic',
+  'fundamental_currency_code',
+  'price_earnings_ttm',
+  'earnings_per_share_diluted_ttm',
+  'earnings_per_share_diluted_yoy_growth_ttm',
+  'dividends_yield_current',
+  'sector.tr',
+  'sector',
+  'AnalystRating',
+  'AnalystRating.tr',
+  'Perf.W',
+  'Perf.1M',
+  'Perf.3M',
+  'Perf.6M',
+  'Perf.YTD',
+  'Perf.Y',
+  'Perf.5Y',
+  'Perf.10Y',
+  'Perf.All',
+  'Volatility.W',
+  'Volatility.M',
+  'RSI',
+  'Recommend.All'
 ]
 
 const TV_BASE_PAYLOAD = {
-  lang: 'en',
-  range: [0, 300],
-  sort: {
-    sortBy: { id: 'TickerUniversal', params: {} },
-    sortOrder: 'asc',
-    nullsFirst: false
-  },
-  scanner_product_label: 'markets-screener'
+  filter: [{ left: 'is_primary', operation: 'equal', right: true }],
+  options: { lang: 'en' },
+  markets: ['srilanka'],
+  range: [0, 350],
+  sort: { sortBy: 'name', sortOrder: 'asc' },
+  symbols: {}
 }
 
 // ─── Store ─────────────────────────────────────────────────────────────────────
@@ -47,44 +66,47 @@ export const useMarketStore = defineStore('market', () => {
   const cseStocks = ref([])
 
   // TradingView enriched maps  →  { "ABAN.N0000": { close, change, ... } }
-  const tvOverview = ref({})
-  const tvPerformance = ref({})
-
-  // Merged, enriched stock list exposed to all views
-  const allStocks = computed(() =>
-    cseStocks.value.map(s => {
-      const ov = tvOverview.value[s.code] || {}
-      const perf = tvPerformance.value[s.code] || {}
-      return {
-        ...s,
-        // TradingView overview enrichment (prefer CSE price but fill gaps)
-        tvClose: ov.close ?? null,
-        tvChange: ov.change ?? null,
-        tvChp: ov.chp ?? null,
-        tvVolume: ov.volume ?? null,
-        tvMktCap: ov.market_cap_basic ?? null,
-        peRatio: ov.pe_ratio ?? 'N/A',
-        divYield: ov.dividend_yield_recent != null
-          ? ov.dividend_yield_recent.toFixed(2) + '%'
-          : 'N/A',
-        sector: s.sector !== 'N/A' ? s.sector : (ov.sector ?? 'N/A'),
-        description: ov.description ?? s.name,
-        logo: ov.logoid
-          ? `https://s3-symbol-logo.tradingview.com/${ov.logoid}.svg`
-          : null,
-        // TradingView performance enrichment
-        perf1w: perf.perf_1w != null ? perf.perf_1w.toFixed(2) + '%' : 'N/A',
-        perf1m: perf.perf_1m != null ? perf.perf_1m.toFixed(2) + '%' : 'N/A',
-        perf3m: perf.perf_3m != null ? perf.perf_3m.toFixed(2) + '%' : 'N/A',
-        perf6m: perf.perf_6m != null ? perf.perf_6m.toFixed(2) + '%' : 'N/A',
-        perfYtd: perf.perf_ytd != null ? perf.perf_ytd.toFixed(2) + '%' : 'N/A',
-        perf1y: perf.perf_1y != null ? perf.perf_1y.toFixed(2) + '%' : 'N/A',
-        rsi: perf.RSI ?? 0,
-        ema20: perf.EMA20 ?? 0,
-        recommendation: perf['Recommend.All'] ?? 0,
-      }
-    })
-  )
+  const tvData = ref({})
+ 
+   // Merged, enriched stock list exposed to all views
+   const allStocks = computed(() =>
+     cseStocks.value.map(s => {
+       const tv = tvData.value[s.code] || {}
+ 
+       // Prefer TradingView for fundamental data if CSE is missing/zero
+       const mktCap = s.mktCap && s.mktCap !== '0' && s.mktCap !== '0.00' 
+         ? s.mktCap 
+         : (tv.market_cap_basic ? formatCurrency(tv.market_cap_basic) : 'N/A')
+ 
+       const divYieldRaw = tv.dividends_yield_current ?? tv.dividend_yield_recent
+ 
+       return {
+         ...s,
+         mktCap,
+         // TradingView overview enrichment
+         peRatio: tv.price_earnings_ttm != null ? tv.price_earnings_ttm.toFixed(2) : (tv.pe_ratio != null ? tv.pe_ratio.toFixed(2) : 'N/A'),
+         divYield: divYieldRaw != null
+           ? divYieldRaw.toFixed(2) + '%'
+           : 'N/A',
+         sector: s.sector !== 'N/A' && s.sector ? s.sector : (tv['sector.tr'] ?? tv.sector ?? 'N/A'),
+         description: tv['ticker-view']?.description ?? tv.description ?? s.name,
+         logo: tv['ticker-view']?.logoid
+           ? `https://s3-symbol-logo.tradingview.com/${tv['ticker-view'].logoid}.svg`
+           : null,
+         // TradingView performance metrics
+         perf1w: tv['Perf.W'] != null ? tv['Perf.W'].toFixed(2) + '%' : 'N/A',
+         perf1m: tv['Perf.1M'] != null ? tv['Perf.1M'].toFixed(2) + '%' : 'N/A',
+         perf3m: tv['Perf.3M'] != null ? tv['Perf.3M'].toFixed(2) + '%' : 'N/A',
+         perf6m: tv['Perf.6M'] != null ? tv['Perf.6M'].toFixed(2) + '%' : 'N/A',
+         perfYtd: tv['Perf.YTD'] != null ? tv['Perf.YTD'].toFixed(2) + '%' : 'N/A',
+         perf1y: tv['Perf.Y'] != null ? tv['Perf.Y'].toFixed(2) + '%' : 'N/A',
+         // Technical indicators
+         rsi: tv.RSI ?? 0,
+         ema20: tv.EMA20 ?? 0,
+         recommendation: tv['Recommend.All'] ?? tv.AnalystRating ?? 0,
+       }
+     })
+   )
 
   // Stock detail page data
   const stockDetail = ref(null)
@@ -113,7 +135,7 @@ export const useMarketStore = defineStore('market', () => {
   const fetchTVScreener = async (columnsetId, columns) => {
     try {
       const res = await fetch(
-        `/tv-api/screener-facade/api/v1/screener-table/scan?table_id=stocks_market_movers.all_stocks&version=54&columnset_id=${columnsetId}&market=srilanka`,
+        `/tv-api/srilanka/scan?label-product=screener-stock`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -122,12 +144,9 @@ export const useMarketStore = defineStore('market', () => {
       )
       if (!res.ok) throw new Error(`TV API ${columnsetId} ${res.status}`)
       const result = await res.json()
-
-      // Build symbol → object map
       const map = {}
       if (Array.isArray(result.data)) {
         result.data.forEach(row => {
-          // row.s = "CSELK:ABAN.N0000", row.d = [val0, val1, ...]
           if (row.s && typeof row.s === 'string') {
             const shortSym = row.s.replace('CSELK:', '')
             const obj = {}
@@ -214,25 +233,19 @@ export const useMarketStore = defineStore('market', () => {
     isLoading.value = true
     error.value = null
     try {
-      const [cseData, ovMap, perfMap] = await Promise.all([
+      const [cseData, tvMap] = await Promise.all([
         cseFetch('/api/tradeSummary'),
-        fetchTVScreener('overview', TV_OVERVIEW_COLS),
-        fetchTVScreener('performance', TV_PERFORMANCE_COLS)
+        fetchTVScreener('all_columns', TV_ALL_COLS)
       ])
 
-      // Store TV maps so the `allStocks` computed can merge them
-      tvOverview.value = ovMap
-      tvPerformance.value = perfMap
+      // Store TV map so the allStocks computed can merge it
+      tvData.value = tvMap
 
-      console.log('Sample TV Overview data:', Object.keys(ovMap).slice(0, 3).map(k => ({ code: k, data: ovMap[k] })))
-      console.log('Sample TV Performance data:', Object.keys(perfMap).slice(0, 3).map(k => ({ code: k, data: perfMap[k] })))
-
-      // Store raw CSE list; allStocks computed does the merge automatically
+      // Store raw CSE list
       if (cseData?.reqTradeSummery) {
         cseStocks.value = cseData.reqTradeSummery.map(mapCseItem)
         console.log(`Fetched ${cseStocks.value.length} stocks from CSE`)
-        console.log(`TV Overview data for ${Object.keys(ovMap).length} stocks`)
-        console.log(`TV Performance data for ${Object.keys(perfMap).length} stocks`)
+        console.log(`TV data merged for ${Object.keys(tvMap).length} stocks`)
       }
     } catch (e) {
       error.value = e.message
@@ -250,18 +263,18 @@ export const useMarketStore = defineStore('market', () => {
     stockDetail.value = null
     try {
       const res = await fetch(
-        '/tv-api/screener-facade/api/v1/screener-table/scan?table_id=stocks_market_movers.all_stocks&version=54&market=srilanka&columnset_id=overview',
+        '/tv-api/srilanka/scan?label-product=screener-stock',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             symbols: { tickers: [`CSELK:${symbol}`], query: { types: [] } },
             columns: [
-              'name', 'close', 'change', 'chp', 'volume', 'market_cap_basic',
+              'ticker-view', 'close', 'change', 'chp', 'volume', 'market_cap_basic',
               'price_earnings_ttm', 'earnings_per_share_basic_ttm',
               'dividend_yield_recent', 'sector', 'RSI', 'EMA20',
               'description', 'logoid', 'open', 'high', 'low', 'change_abs',
-              'perf_1w', 'perf_1m', 'perf_3m', 'Recommend.All'
+              'Perf.W', 'Perf.1M', 'Perf.3M', 'Recommend.All'
             ]
           })
         }
@@ -270,32 +283,43 @@ export const useMarketStore = defineStore('market', () => {
 
       const result = await res.json()
       if (result.data?.length > 0) {
-        const d = {}
-        result.data.forEach(col => { d[col.id] = col.rawValues[0] })
+        const row = result.data[0]
+        const colMap = {}
+        // The result columns are in the same order as in the request
+        const requestedCols = [
+          'ticker-view', 'close', 'change', 'volume', 'market_cap_basic',
+          'price_earnings_ttm', 'earnings_per_share_basic_ttm',
+          'dividend_yield_recent', 'sector', 'RSI', 'EMA20',
+          'description', 'logoid', 'open', 'high', 'low', 'change_abs',
+          'Perf.W', 'Perf.1M', 'Perf.3M', 'Recommend.All'
+        ]
+        requestedCols.forEach((col, idx) => { colMap[col] = row.d[idx] })
+
+        const tvDescription = colMap['ticker-view']?.description || colMap.description
 
         stockDetail.value = {
           symbol,
-          fullName: d.description || symbol,
-          logo: d.logoid ? `https://s3-symbol-logo.tradingview.com/${d.logoid}.svg` : null,
-          price: d.close || 0,
-          change: d.change_abs || 0,
-          changePercent: d.chp || 0,
-          high: d.high || 0,
-          low: d.low || 0,
-          open: d.open || 0,
-          volume: d.volume || 0,
-          marketCap: d.market_cap_basic || 0,
-          peRatio: d.price_earnings_ttm ?? 'N/A',
-          dividendYield: d.dividend_yield_recent != null
-            ? d.dividend_yield_recent.toFixed(2) + '%' : 'N/A',
-          sector: d.sector || 'Unknown',
-          eps: d.earnings_per_share_basic_ttm || 0,
-          rsi: d.RSI || 0,
-          ema20: d.EMA20 || 0,
-          recommendation: d['Recommend.All'] || 0,
-          perf1w: d.perf_1w != null ? d.perf_1w.toFixed(2) + '%' : 'N/A',
-          perf1m: d.perf_1m != null ? d.perf_1m.toFixed(2) + '%' : 'N/A',
-          perf3m: d.perf_3m != null ? d.perf_3m.toFixed(2) + '%' : 'N/A',
+          fullName: tvDescription || symbol,
+          logo: colMap.logoid ? `https://s3-symbol-logo.tradingview.com/${colMap.logoid}.svg` : null,
+          price: colMap.close || 0,
+          change: colMap.change_abs || colMap.change || 0,
+          changePercent: colMap.change || 0, // Fallback if change is percentage
+          high: colMap.high || 0,
+          low: colMap.low || 0,
+          open: colMap.open || 0,
+          volume: colMap.volume || 0,
+          marketCap: colMap.market_cap_basic || 0,
+          peRatio: colMap.price_earnings_ttm ?? 'N/A',
+          dividendYield: colMap.dividend_yield_recent != null
+            ? colMap.dividend_yield_recent.toFixed(2) + '%' : 'N/A',
+          sector: colMap.sector || 'Unknown',
+          eps: colMap.earnings_per_share_basic_ttm || 0,
+          rsi: colMap.RSI || 0,
+          ema20: colMap.EMA20 || 0,
+          recommendation: colMap['Recommend.All'] || 0,
+          perf1w: colMap['Perf.W'] != null ? colMap['Perf.W'].toFixed(2) + '%' : 'N/A',
+          perf1m: colMap['Perf.1M'] != null ? colMap['Perf.1M'].toFixed(2) + '%' : 'N/A',
+          perf3m: colMap['Perf.3M'] != null ? colMap['Perf.3M'].toFixed(2) + '%' : 'N/A',
         }
       } else {
         error.value = 'Stock not found in TradingView database.'
@@ -340,8 +364,6 @@ export const useMarketStore = defineStore('market', () => {
     topTo,
     allStocks,
     stockDetail,
-    tvOverview,
-    tvPerformance,
     // Actions
     fetchDashboardData,
     fetchFullMarket,
