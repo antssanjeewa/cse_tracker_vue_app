@@ -1,12 +1,13 @@
 <script setup>
-import { Search, Filter, RefreshCw } from 'lucide-vue-next'
+import { Search, Filter, RefreshCw, Globe, Briefcase } from 'lucide-vue-next'
 
 const props = defineProps({
   searchQuery: String,
-  isLoading: Boolean
+  isLoading: Boolean,
+  viewMode: { type: String, default: 'all' }
 })
 
-const emit = defineEmits(['update:searchQuery', 'refresh'])
+const emit = defineEmits(['update:searchQuery', 'update:viewMode', 'refresh'])
 
 const onSearchInput = (event) => {
   emit('update:searchQuery', event.target.value)
@@ -54,6 +55,23 @@ const onRefresh = () => {
     </div>
 
     <div class="flex items-center gap-3">
+      <div class="flex bg-[#0b0f1a] border border-white/10 rounded overflow-hidden p-0.5 mr-2">
+         <button 
+           @click="emit('update:viewMode', 'all')"
+           class="px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+           :class="viewMode === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'"
+         >
+           <Globe class="w-3 h-3" /> ALL
+         </button>
+         <button 
+           @click="emit('update:viewMode', 'portfolio')"
+           class="px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+           :class="viewMode === 'portfolio' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-slate-300'"
+         >
+           <Briefcase class="w-3 h-3" /> HOLDINGS
+         </button>
+      </div>
+
       <button
         class="bg-[#1e293b] border border-white/10 text-slate-300 font-bold text-[10px] px-3 py-1.5 rounded flex items-center gap-2 uppercase hover:bg-slate-700"
       >

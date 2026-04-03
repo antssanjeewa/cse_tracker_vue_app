@@ -1,156 +1,100 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import DashboardLayout from '../components/layouts/DashboardLayout.vue'
+import { useMarketStore } from '@/stores/marketStore'
+import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 import { 
-  ArrowLeft, 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  BarChart3, 
-  Info,
-  ExternalLink,
-  Globe,
-  Building2,
-  PieChart,
-  DollarSign,
-  Briefcase,
-  LayoutPanelTop
+  ArrowLeft, TrendingUp, TrendingDown, Activity, 
+  BarChart3, Info, ExternalLink, Globe, 
+  Building2, PieChart, DollarSign, Briefcase, 
+  LayoutPanelTop, Zap, AlertTriangle
 } from 'lucide-vue-next'
 import VueApexCharts from 'vue3-apexcharts'
 
 const route = useRoute()
 const router = useRouter()
+const marketStore = useMarketStore()
 const symbol = computed(() => route.params.symbol)
+
 const isLoading = ref(true)
 const stockData = ref(null)
 const error = ref(null)
 
-const fetchStockDetails = async () => {
+// ── Data Resolution Logic ───────────────────────────────────────────────────
+/**
+ * Resolves stock data by first checking the store's pre-fetched market list.
+ * This avoids redundant API calls and ensures UI consistency.
+ */
+const resolveStockData = async () => {
   isLoading.value = true
   error.value = null
+  
   try {
-    const response = await fetch('/tv-api/screener-facade/api/v1/screener-table/scan?table_id=stocks_market_movers.all_stocks&version=54&market=srilanka&columnset_id=overview', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        symbols: {
-          tickers: [`CSELK:${symbol.value}`],
-          query: { types: [] }
-        },
-        columns: [
-          "name",
-          "close",
-          "change",
-          "volume",
-          "market_cap_basic",
-          "price_earnings_ttm",
-          "earnings_per_share_basic_ttm",
-          "dividend_yield_recent",
-          "sector",
-          "RSI",
-          "EMA20",
-          "description",
-          "logoid",
-          "open",
-          "high",
-          "low",
-          "change_abs",
-          "change_percent"
-        ]
-      })
-    })
-
-    if (!response.ok) {
-       const errorText = await response.text()
-       throw new Error(`API Error (${response.status}): ${errorText.substring(0, 100)}`)
+    // 1. Check if we already have the data in store
+    if (marketStore.allStocks.length === 0) {
+      await marketStore.fetchFullMarket()
     }
     
-    const result = await response.json()
-    if (result.data && result.data.length > 0) {
-      // Map TradingView data structure
-      const data = {}
-      result.data.forEach((col) => {
-        data[col.id] = col.rawValues[0]
-      })
-      
+    // Fuzzy match for tickers (e.g. TJL vs TJL.N0000)
+    const tickerPrefix = symbol.value.split('.')[0]
+    const found = marketStore.allStocks.find(s => 
+      s.code === symbol.value || 
+      s.code === tickerPrefix || 
+      s.code.startsWith(tickerPrefix + '.')
+    )
+    
+    if (found) {
+      // Map store data to the view's expected structure
       stockData.value = {
-        symbol: symbol.value,
-        fullName: data.description || symbol.value,
-        logo: data.logoid ? `https://s3-symbol-logo.tradingview.com/${data.logoid}.svg` : null,
-        price: data.close || 0,
-        change: data.change_abs || 0,
-        changePercent: data.change || data.change_percent || 0,
-        high: data.high || 0,
-        low: data.low || 0,
-        open: data.open || 0,
-        volume: data.volume || 0,
-        marketCap: data.market_cap_basic || 0,
-        peRatio: data.price_earnings_ttm || 'N/A',
-        dividendYield: data.dividend_yield_recent ? data.dividend_yield_recent.toFixed(2) + '%' : 'N/A',
-        sector: data.sector || 'Unknown',
-        industry: data.industry || 'Unknown',
-        eps: data.earnings_per_share_basic_ttm || 0,
-        rsi: data.RSI || 0,
-        ema20: data.EMA20 || 0,
-        recommendation: data['Recommend.All'] || 0
+        symbol: found.code,
+        ticker: found.ticker || found.code,
+        fullName: found.name || found.description,
+        logo: found.logo,
+        price: parseFloat(found.price || 0),
+        change: parseFloat(found.change || 0),
+        changePercent: parseFloat(found.percentageChange || found.changePct || 0),
+        high: parseFloat(found.high || 0),
+        low: parseFloat(found.low || 0),
+        open: parseFloat(found.open || 0),
+        volume: found.volume || 0,
+        marketCap: found.mktCap || 0,
+        peRatio: found.peRatio || 0,
+        dividendYield: found.divYield || '0.00%',
+        sector: found.sector || 'N/A',
+        rsi: found.rsi || 0,
+        ema20: found.ema20 || 0,
+        recommendation: found.recommendation || 0,
+        // Performance metrics
+        perf1w: found.perf1w || '0.00%',
+        perf1m: found.perf1m || '0.00%',
+        perf3m: found.perf3m || '0.00%',
+        perf6m: found.perf6m || '0.00%',
+        perfYtd: found.perfYtd || '0.00%',
+        perf1y: found.perf1y || '0.00%',
+        // Fundamentals
+        eps: found.eps || 0,
+        revenue: found.revenue || 0,
+        netIncome: found.netIncome || 0,
+        roe: found.roe || 'N/A'
       }
     } else {
-      error.value = "Stock not found in TradingView database."
+      // Fallback: If still not found, try a targeted TV fetch
+      await marketStore.fetchStockDetailFromTV(symbol.value)
+      if (marketStore.stockDetail) {
+         stockData.value = marketStore.stockDetail
+      } else {
+         throw new Error(`Stock terminal could not locate ${symbol.value} in active market data.`)
+      }
     }
   } catch (err) {
-    console.error('Error fetching stock details:', err)
-    error.value = "Failed to load stock data. Please try again later."
+    console.error('Resolution Error:', err)
+    error.value = "Failed to synchronize local stock data. Please check your connection."
   } finally {
     isLoading.value = false
   }
 }
 
-const chartSeries = ref([
-  {
-    name: 'Price',
-    data: [120, 122, 121, 125, 124, 128, 127, 130, 132, 131] // Simulated historical data
-  }
-])
-
-const chartOptions = {
-  chart: {
-    type: 'area',
-    height: 350,
-    toolbar: { show: false },
-    background: 'transparent',
-    sparkline: { enabled: false }
-  },
-  stroke: { curve: 'smooth', width: 2 },
-  fill: {
-    type: 'gradient',
-    gradient: {
-      shadeIntensity: 1,
-      opacityFrom: 0.45,
-      opacityTo: 0.05,
-      stops: [20, 100, 100, 100]
-    }
-  },
-  theme: { mode: 'dark' },
-  colors: ['#3b82f6'],
-  xaxis: {
-    labels: { show: false },
-    axisBorder: { show: false },
-    axisTicks: { show: false }
-  },
-  yaxis: { labels: { show: true, style: { colors: '#94a3b8' } } },
-  grid: { borderColor: 'rgba(255,255,255,0.05)' },
-  tooltip: { theme: 'dark' }
-}
-
-const formatCurrency = (val) => {
-  if (!val) return '0.00'
-  if (val >= 1000000000) return (val / 1000000000).toFixed(2) + 'B'
-  if (val >= 1000000) return (val / 1000000).toFixed(2) + 'M'
-  return val.toLocaleString()
-}
+const formatCurrency = (val) => marketStore.formatCurrency(val)
 
 const getRecommendationText = (val) => {
   if (val > 0.5) return 'Strong Buy'
@@ -160,9 +104,32 @@ const getRecommendationText = (val) => {
   return 'Neutral'
 }
 
+// ── Chart Config ─────────────────────────────────────────────────────────────
+const chartSeries = ref([
+  {
+    name: 'Price',
+    data: [120, 122, 121, 125, 124, 128, 127, 130, 132, 131]
+  }
+])
+
+const chartOptions = {
+  chart: { type: 'area', height: 350, toolbar: { show: false }, background: 'transparent' },
+  stroke: { curve: 'smooth', width: 2 },
+  fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05 } },
+  theme: { mode: 'dark' },
+  colors: ['#6366f1'],
+  xaxis: { labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+  yaxis: { labels: { show: true, style: { colors: '#64748b' }, formatter: (val) => val.toFixed(2) } },
+  grid: { borderColor: 'rgba(255,255,255,0.03)' },
+  tooltip: { theme: 'dark' }
+}
+
 onMounted(() => {
-  fetchStockDetails()
+  resolveStockData()
 })
+
+// Re-fetch if symbol changes
+watch(() => symbol.value, () => resolveStockData())
 </script>
 
 <template>
@@ -231,14 +198,14 @@ onMounted(() => {
 
             <div class="text-left md:text-right">
               <div class="flex items-baseline md:justify-end gap-2">
-                <span class="text-3xl font-black text-white font-mono">{{ stockData.price.toFixed(2) }}</span>
+                <span class="text-3xl font-black text-white font-mono">{{ (stockData.price || 0).toFixed(2) }}</span>
                 <span class="text-xs font-bold text-slate-500">LKR</span>
               </div>
               <div class="flex items-center md:justify-end gap-2 mt-1">
                 <div :class="stockData.change >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'" class="px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
                   <TrendingUp v-if="stockData.change >= 0" class="w-3 h-3" />
                   <TrendingDown v-else class="w-3 h-3" />
-                  {{ stockData.changePercent.toFixed(2) }}%
+                  {{ (stockData.changePercent || 0).toFixed(2) }}%
                 </div>
                 <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Real-time</span>
               </div>
@@ -271,8 +238,8 @@ onMounted(() => {
                   <div v-for="fin in [
                     { label: 'Revenue', value: formatCurrency(stockData.revenue), color: 'text-indigo-400' },
                     { label: 'Net Income', value: formatCurrency(stockData.netIncome), color: 'text-emerald-400' },
-                    { label: 'EPS', value: stockData.eps.toFixed(2), color: 'text-amber-400' },
-                    { label: 'ROE', value: stockData.roe, color: 'text-rose-400' }
+                    { label: 'EPS', value: (stockData.eps || 0).toFixed(2), color: 'text-amber-400' },
+                    { label: 'ROE', value: stockData.roe || 'N/A', color: 'text-rose-400' }
                   ]" :key="fin.label" class="bg-white/5 p-4 rounded-2xl border border-white/5">
                     <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">{{ fin.label }}</p>
                     <p class="text-sm font-black text-white font-mono">{{ fin.value }}</p>

@@ -57,6 +57,9 @@ export const useMarketStore = defineStore('market', () => {
     { label: 'Market Trades', value: '0', subValue: 'Live', icon: 'Clock' },
   ])
 
+  // Market Breadth
+  const breadthCount = ref({ advancers: 0, decliners: 0, unchanged: 0, total: 0 })
+
   // CSE market lists
   const gainers = ref([])
   const losers = ref([])
@@ -260,6 +263,17 @@ export const useMarketStore = defineStore('market', () => {
       // Store raw CSE list
       if (cseData?.reqTradeSummery) {
         cseStocks.value = cseData.reqTradeSummery.map(mapCseItem)
+        
+        // Calculate Breadth
+        const b = { advancers: 0, decliners: 0, unchanged: 0, total: cseStocks.value.length }
+        cseStocks.value.forEach(s => {
+          const chg = parseFloat(s.change)
+          if (chg > 0) b.advancers++
+          else if (chg < 0) b.decliners++
+          else b.unchanged++
+        })
+        breadthCount.value = b
+
         console.log(`Fetched ${cseStocks.value.length} stocks from CSE`)
         console.log(`TV data merged for ${Object.keys(tvMap).length} stocks`)
       }
@@ -378,6 +392,7 @@ export const useMarketStore = defineStore('market', () => {
     gainers,
     losers,
     topTo,
+    breadthCount,
     allStocks,
     stockDetail,
     // Actions

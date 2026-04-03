@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 import { useMarketStore } from '@/stores/marketStore'
+import { usePortfolioStore } from '@/stores/portfolioStore'
 import { 
   MarketToolbar, 
   MarketFilterBar, 
@@ -16,8 +17,34 @@ import {
 
 const router = useRouter()
 const marketStore = useMarketStore()
+const portfolioStore = usePortfolioStore()
 
-// ── Logic ───────────────────────────────────────────────────────────────────
+// ── View Management ─────────────────────────────────────────────────────────
+const viewMode = ref('all') // 'all' or 'portfolio'
+
+/**
+ * Robust ticker matching: 
+ * Strips exchange classifiers (e.g., .N0000) to ensure portfolio 
+ * symbols like 'TJL' match market codes like 'TJL.N0000'.
+ */
+const sourceStocks = computed(() => {
+  if (viewMode.value === 'portfolio') {
+    const portfolioTickers = portfolioStore.holdings
+      .filter(h => parseFloat(h.quantity) > 0)
+      .map(h => {
+        const symbol = h.stocks?.ticker || h.stocks?.code || ''
+        return symbol.toUpperCase().split('.')[0]
+      })
+    
+    return marketStore.allStocks.filter(s => {
+      const stockTicker = (s.code || '').toUpperCase().split('.')[0]
+      return portfolioTickers.includes(stockTicker)
+    })
+  }
+  return marketStore.allStocks
+})
+
+// ── Table Logic ─────────────────────────────────────────────────────────────
 const {
   searchQuery,
   currentPage,
@@ -32,13 +59,16 @@ const {
   nextPage,
   prevPage,
   setPage
-} = useMarketTable(computed(() => marketStore.allStocks))
+} = useMarketTable(sourceStocks)
 
 const activeColumns = computed(() => COLUMN_GROUPS[activeColumnTab.value])
 
-onMounted(() => {
+onMounted(async () => {
   if (marketStore.allStocks.length === 0) {
-    marketStore.fetchFullMarket()
+    await marketStore.fetchFullMarket()
+  }
+  if (portfolioStore.holdings.length === 0) {
+    await portfolioStore.fetchPortfolio()
   }
 })
 
@@ -52,6 +82,7 @@ const goToStock = (code) => {
     <div class="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-[#0c1221]">
       <MarketToolbar
         v-model:searchQuery="searchQuery"
+        v-model:viewMode="viewMode"
         :isLoading="marketStore.isLoading"
         @refresh="marketStore.fetchFullMarket"
       />
@@ -81,7 +112,7 @@ const goToStock = (code) => {
         :totalItems="filteredStocks.length"
         :currentPage="currentPage"
         :totalPages="totalPages"
-        :totalStocksCount="marketStore.allStocks.length"
+        :totalStocksCount="sourceStocks.length"
         @prevPage="prevPage"
         @nextPage="nextPage"
         @setPage="setPage"
