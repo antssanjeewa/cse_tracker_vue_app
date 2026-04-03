@@ -13,6 +13,13 @@ export default defineConfig({
     tailwindcss(),
   ],
   base: '/cse_tracker_vue_app/',
+   build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
