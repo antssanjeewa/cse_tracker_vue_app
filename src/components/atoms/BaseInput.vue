@@ -7,12 +7,12 @@ const props = defineProps({
   label: String,
   type: {
     type: String,
-    default: 'text'
+    default: 'text',
   },
   placeholder: String,
   error: String,
   success: Boolean,
-  icon: Object
+  icon: [Object, Function],
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -32,15 +32,21 @@ const togglePassword = () => {
 
 <template>
   <div class="space-y-1.5 w-full group">
-    <label v-if="label" class="block text-sm font-medium text-slate-300 transition-colors group-focus-within:text-indigo-400">
+    <label
+      v-if="label"
+      class="block text-sm font-medium text-slate-300 transition-colors group-focus-within:text-indigo-400"
+    >
       {{ label }}
     </label>
-    
+
     <div class="relative flex items-center">
-      <div v-if="icon" class="absolute left-3.5 text-slate-400 transition-colors group-focus-within:text-indigo-500">
+      <div
+        v-if="icon"
+        class="absolute left-3.5 text-slate-400 transition-colors group-focus-within:text-indigo-500"
+      >
         <component :is="icon" class="w-5 h-5" />
       </div>
-      
+
       <input
         :type="inputType"
         :value="modelValue"
@@ -49,12 +55,13 @@ const togglePassword = () => {
         :class="{
           'pl-11': !!icon,
           'pr-11': type === 'password',
-          'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/10 focus:shadow-rose-500/15': !!error,
-          'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/10': success
+          'border-rose-500/50 focus:border-rose-500 focus:ring-rose-500/10 focus:shadow-rose-500/15':
+            !!error,
+          'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/10': success,
         }"
         :placeholder="placeholder"
       />
-      
+
       <button
         v-if="type === 'password'"
         type="button"
@@ -65,7 +72,7 @@ const togglePassword = () => {
         <Eye v-else class="w-5 h-5" />
       </button>
     </div>
-    
+
     <p v-if="error" class="text-xs font-medium text-rose-500/90 ml-1">
       {{ error }}
     </p>
