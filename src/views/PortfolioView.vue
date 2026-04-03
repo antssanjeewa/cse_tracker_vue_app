@@ -1,15 +1,49 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { usePortfolioStore } from '@/stores/portfolioStore'
+import { useMarketStore } from '@/stores/marketStore'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 import { PortfolioStats, HoldingsTable, RecentTransactions } from '@/features/portfolio'
 import { Loader2, Plus, Info } from 'lucide-vue-next'
 
 const portfolioStore = usePortfolioStore()
+const marketStore = useMarketStore()
 
-onMounted(() => {
-  portfolioStore.fetchPortfolio()
-  portfolioStore.fetchProfile()
+onMounted(async () => {
+  await Promise.all([
+    portfolioStore.fetchPortfolio(),
+    portfolioStore.fetchProfile(),
+    marketStore.fetchFullMarket()
+  ])
+})
+
+const enrichedHoldings = computed(() => {
+  return portfolioStore.holdings
+    .filter(h => parseFloat(h.quantity) > 0)
+    .map(h => {
+      const tickerPrefix = (h.stocks?.ticker || '').toUpperCase().split('.')[0]
+      const marketStock = marketStore.allStocks.find(s => 
+        (s.code || '').toUpperCase().split('.')[0] === tickerPrefix
+      )
+      
+      const currentMarketPrice = parseFloat(marketStock?.close || marketStock?.price || h.avg_price)
+      const avgPrice = parseFloat(h.avg_price || 0)
+      const qty = parseFloat(h.quantity || 0)
+      
+      // Calculate live values
+      const currentCost = qty * avgPrice
+      const marketValue = qty * currentMarketPrice
+      const liveProfit = marketValue - currentCost
+      const liveRoi = currentCost > 0 ? (liveProfit / currentCost) * 100 : 0
+      
+      return {
+        ...h,
+        market_price: currentMarketPrice,
+        marketValue,
+        liveProfit,
+        liveRoi
+      }
+    })
 })
 </script>
 
@@ -62,7 +96,7 @@ onMounted(() => {
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <!-- Main Holdings Table -->
           <div class="xl:col-span-2">
-            <HoldingsTable :holdings="portfolioStore.holdings" />
+            <HoldingsTable :holdings="enrichedHoldings" />
           </div>
 
           <!-- Recent Transactions Sidebar -->
