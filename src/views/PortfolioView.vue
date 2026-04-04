@@ -32,23 +32,23 @@ const enrichedHoldings = computed(() => {
   if (filterType.value === 'current') {
     list = list.filter(h => parseFloat(h.quantity) > 0)
   }
-  
+
   return list.map(h => {
     const tickerPrefix = (h.stocks?.ticker || '').toUpperCase().split('.')[0]
-    const marketStock = marketStore.allStocks.find(s => 
+    const marketStock = marketStore.allStocks.find(s =>
       (s.code || '').toUpperCase().split('.')[0] === tickerPrefix
     )
-    
+
     const currentMarketPrice = parseFloat(marketStock?.close || marketStock?.price || h.avg_price)
     const avgPrice = parseFloat(h.avg_price || 0)
     const qty = parseFloat(h.quantity || 0)
-    
+
     // Calculate live values
     const currentCost = qty * avgPrice
-    const marketValue = qty * currentMarketPrice
+    const marketValue = qty * currentMarketPrice * 0.9888
     const liveProfit = marketValue - currentCost
     const liveRoi = currentCost > 0 ? (liveProfit / currentCost) * 100 : 0
-    
+
     return {
       ...h,
       market_price: currentMarketPrice,
@@ -71,7 +71,7 @@ const enrichedHoldings = computed(() => {
             MY PORTFOLIO
           </h1>
           <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-            {{ filterType === 'current' ? 'Active Trading Positions' : 'Full Portfolio History' }} 
+            {{ filterType === 'current' ? 'Active Trading Positions' : 'Full Portfolio History' }}
             ({{ enrichedHoldings.length }} items)
           </p>
         </div>
@@ -99,13 +99,7 @@ const enrichedHoldings = computed(() => {
 
       <div v-else>
         <!-- Stats Row -->
-        <PortfolioStats 
-          :equity="portfolioStore.totalEquity"
-          :profit="portfolioStore.totalProfit"
-          :cash="portfolioStore.cashBalance"
-          :totalDividends="portfolioStore.totalDividends"
-          :netWorth="portfolioStore.netWorth"
-        />
+        <PortfolioStats :equity="portfolioStore.totalEquity" :profit="portfolioStore.totalProfit" :cash="portfolioStore.cashBalance" :totalDividends="portfolioStore.totalDividends" :netWorth="portfolioStore.netWorth" />
 
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <!-- Main Holdings Table -->
@@ -121,11 +115,7 @@ const enrichedHoldings = computed(() => {
       </div>
 
       <!-- Modals -->
-      <AddTransactionModal 
-        :is-open="isModalOpen" 
-        @close="isModalOpen = false" 
-        @save="handleSaveTransaction" 
-      />
+      <AddTransactionModal :is-open="isModalOpen" @close="isModalOpen = false" @save="handleSaveTransaction" />
     </div>
   </DashboardLayout>
 </template>

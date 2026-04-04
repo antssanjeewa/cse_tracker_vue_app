@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { TrendingUp, TrendingDown, Search as SearchIcon, ArrowUpDown, ChevronUp, ChevronDown, FileDown, Plus } from 'lucide-vue-next'
+import { Search as SearchIcon, ArrowUpDown, ChevronUp, ChevronDown, FileDown, Plus } from 'lucide-vue-next'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -67,16 +67,12 @@ const downloadPDF = () => {
   const dateStr = new Date().toLocaleDateString()
   const timeStr = new Date().toLocaleTimeString()
 
-  // 1. Restore Header Color Bar (Top Header)
-  doc.setFillColor(255, 178, 102) // User's preferred Orange
-  doc.rect(0, 0, 210, 18, 'F')
 
-  doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.text('CSE PORTFOLIO SUMMARY', 15, 12)
 
-  doc.setTextColor(255, 255, 255)
+
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.text(`GENERATED: ${dateStr} ${timeStr}`, 160, 12)
@@ -89,12 +85,12 @@ const downloadPDF = () => {
   const capGl = totalMarket - totalCost
 
   const stats = [
-    { label: 'INVESTMENT', value: `LKR ${formatCurrency(totalCost)}`, bgColor: [79, 70, 229], textColor: [255, 255, 255] },
+    { label: 'INVESTMENT', value: `LKR ${formatCurrency(totalCost)}`, bgColor: [219, 234, 254], textColor: [30, 58, 138] }, // Light Blue bg, Dark Blue text
     { label: 'DIVIDENDS', value: `LKR ${formatCurrency(totalDivs)}`, bgColor: [241, 245, 249], textColor: [30, 41, 59] },
     {
       label: 'TOTAL G/L', value: `LKR ${formatCurrency(totalProfits)}`,
-      bgColor: totalProfits >= 0 ? [16, 185, 129] : [239, 68, 68],
-      textColor: [255, 255, 255]
+      bgColor: totalProfits >= 0 ? [209, 250, 229] : [254, 226, 226], // Light Green or Light Red bg
+      textColor: totalProfits >= 0 ? [6, 78, 59] : [153, 27, 27]    // Dark Green or Dark Red text
     },
     {
       label: 'CURRENT G/L', value: `LKR ${formatCurrency(capGl)}`,
@@ -148,7 +144,9 @@ const downloadPDF = () => {
       cellPadding: 1,
       font: 'courier',
       lineColor: [226, 232, 240],
-      lineWidth: 0.1
+      lineWidth: 0.1,
+      textColor: [0, 0, 0], // Table cell font black
+      fontStyle: 'bold' // Table cell font bold
     },
     headStyles: {
       fillColor: [30, 41, 59],
@@ -187,7 +185,7 @@ const downloadPDF = () => {
         }
       }
     },
-    didDrawPage: (data) => {
+    didDrawPage: () => {
       doc.setFontSize(5)
       doc.setTextColor(148, 163, 184)
       doc.text('CONFIDENTIAL ASSET REPORT - GENERATED VIA CSE TRACKER', 15, doc.internal.pageSize.height - 5)

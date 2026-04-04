@@ -12,8 +12,8 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
   ],
-  base: '/cse_tracker_vue_app/',
-   build: {
+  base: '/',
+  build: {
     rollupOptions: {
       output: {
         manualChunks: undefined
