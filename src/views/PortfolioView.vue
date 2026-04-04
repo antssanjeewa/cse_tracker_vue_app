@@ -34,9 +34,9 @@ const enrichedHoldings = computed(() => {
   }
 
   return list.map(h => {
-    const tickerPrefix = (h.stocks?.ticker || '').toUpperCase().split('.')[0]
+    const tickerPrefix = (h.stocks?.ticker || '').toUpperCase()
     const marketStock = marketStore.allStocks.find(s =>
-      (s.code || '').toUpperCase().split('.')[0] === tickerPrefix
+      (s.code || '').toUpperCase() === tickerPrefix
     )
 
     const currentMarketPrice = parseFloat(marketStock?.close || marketStock?.price || h.avg_price)

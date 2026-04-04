@@ -79,7 +79,7 @@ const downloadPDF = () => {
 
   // 2. Executive Summary Cards (Hyper-Compact)
   const totalCost = props.holdings.reduce((sum, h) => sum + (h.quantity * h.avg_price), 0)
-  const totalMarket = props.holdings.reduce((sum, h) => sum + (h.quantity * (h.market_price || h.avg_price)), 0)
+  const totalMarket = props.holdings.reduce((sum, h) => sum + (h.quantity * (h.market_price || h.avg_price) * 0.9888), 0)
   const totalDivs = props.holdings.reduce((sum, h) => sum + (parseFloat(h.dividend) || 0), 0)
   const totalProfits = props.holdings.reduce((sum, h) => sum + (parseFloat(h.profit) || 0), 0)
   const capGl = totalMarket - totalCost
@@ -331,8 +331,8 @@ const downloadPDF = () => {
             <td class="px-5 py-4 border-r border-white/5 text-right text-[11px] font-bold text-slate-400">
               {{ formatCurrency(holding.dividend || 0) }}
             </td>
-            <td class="px-5 py-4 border-r border-white/5 text-right text-[11px] font-black" :class="(holding.profit || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'">
-              {{ ((holding.profit || 0) >= 0 ? '+' : '') }}{{ formatCurrency(holding.profit || 0) }}
+            <td class="px-5 py-4 border-r border-white/5 text-right text-[11px] font-black" :class="(holding.profit || 0) > 0 ? 'text-emerald-500' : (holding.profit || 0) < 0 ? 'text-rose-500' : 'text-slate-500'">
+              {{ ((holding.profit || 0) > 0 ? '+' : '') }}{{ formatCurrency(holding.profit || 0) }}
             </td>
             <td class="px-5 py-4 border-r border-white/5 text-right">
               <div class="flex flex-col items-end">
@@ -344,12 +344,12 @@ const downloadPDF = () => {
             </td>
             <td class="px-5 py-4 text-right">
               <div class="flex flex-col items-end">
-                <span class="text-[11px] font-black" :class="(holding.liveProfit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'">
-                  {{ (holding.liveProfit || 0) >= 0 ? '+' : '' }}{{ formatCurrency(holding.liveProfit || 0) }}
+                <span class="text-[11px] font-black" :class="(holding.liveProfit || 0) > 0 ? 'text-emerald-400' : (holding.liveProfit || 0) < 0 ? 'text-rose-400' : 'text-slate-400'">
+                  {{ (holding.liveProfit || 0) > 0 ? '+' : '' }}{{ formatCurrency(holding.liveProfit || 0) }}
                 </span>
-                <span class="text-[9px] font-bold" :class="(holding.profit || 0) >= 0 ? 'text-emerald-500/50' : 'text-rose-500/50'">
-                  {{ (holding.quantity * holding.avg_price) > 0
-                    ? (((holding.profit || 0) / (holding.quantity * holding.avg_price)) * 100).toFixed(2)
+                <span class="text-[9px] font-bold" :class="(holding.liveProfit || 0) > 0 ? 'text-emerald-500/50' : (holding.liveProfit || 0) < 0 ? 'text-rose-500/50' : 'text-slate-500/50'">
+                  {{ holding.liveProfit != 0
+                    ? (((holding.liveProfit || 0) / (holding.quantity * holding.avg_price)) * 100).toFixed(2)
                     : '0.00' }}%
                 </span>
               </div>

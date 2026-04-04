@@ -42,7 +42,7 @@ const formatDate = (dateString) => {
                 'bg-indigo-500/10 text-indigo-500': t.type === 'DIVIDEND'
               }">{{ t.type }}</span>
             </td>
-            <td class="px-4 py-3 text-[10px] font-black text-white uppercase">{{ t.stocks?.ticker }}</td>
+            <td class="px-4 py-3 text-[10px] font-black text-white uppercase">{{ t.stocks?.ticker.split('0')[0] }}</td>
             <td class="px-4 py-3 text-right text-[10px] font-bold text-slate-400">{{ t.qty }}</td>
             <td class="px-4 py-3 text-right text-[10px] font-bold text-slate-400">{{ formatCurrency(t.unit_price) }}</td>
             <td class="px-4 py-3 text-right text-[10px] font-black text-white">{{ formatCurrency(t.total_price) }}</td>
