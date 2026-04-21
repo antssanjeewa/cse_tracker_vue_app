@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://www.cse.lk/:path*"
+      "destination": "https://www.cse.lk/api/:path*"
     },
     {
       "source": "/tv-api/:path*",
