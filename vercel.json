@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://www.cse.lk/:path*"
+    },
+    {
+      "source": "/tv-api/:path*",
+      "destination": "https://scanner.tradingview.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
