@@ -12,5 +12,31 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Referer", "value": "https://www.cse.lk/equity/trade-summary" },
+        { "key": "Origin", "value": "https://www.cse.lk" },
+        {
+          "key": "User-Agent",
+          "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        { "key": "Accept", "value": "application/json, text/plain, */*" }
+      ]
+    },
+    {
+      "source": "/tv-api/:path*",
+      "headers": [
+        { "key": "Origin", "value": "https://www.tradingview.com" },
+        { "key": "Referer", "value": "https://www.tradingview.com/screener/" },
+        {
+          "key": "User-Agent",
+          "value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        { "key": "Accept", "value": "application/json, text/plain, */*" }
+      ]
+    }
   ]
 }

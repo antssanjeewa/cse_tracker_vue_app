@@ -70,46 +70,46 @@ export const useMarketStore = defineStore('market', () => {
 
   // TradingView enriched maps  →  { "ABAN.N0000": { close, change, ... } }
   const tvData = ref({})
- 
-   // Merged, enriched stock list exposed to all views
-   const allStocks = computed(() =>
-     cseStocks.value.map(s => {
-       const tv = tvData.value[s.code] || {}
- 
-       // Prefer TradingView for fundamental data if CSE is missing/zero
-       const mktCap = s.mktCap && s.mktCap !== '0' && s.mktCap !== '0.00' 
-         ? s.mktCap 
-         : (tv.market_cap_basic ? formatCurrency(tv.market_cap_basic) : 'N/A')
- 
-       const divYieldRaw = tv.dividends_yield_current ?? tv.dividend_yield_recent
- 
-       return {
-         ...s,
-         mktCap,
-         // TradingView overview enrichment
-         peRatio: tv.price_earnings_ttm != null ? tv.price_earnings_ttm.toFixed(2) : (tv.pe_ratio != null ? tv.pe_ratio.toFixed(2) : 'N/A'),
-         divYield: divYieldRaw != null
-           ? divYieldRaw.toFixed(2) + '%'
-           : 'N/A',
-         sector: s.sector !== 'N/A' && s.sector ? s.sector : (tv['sector.tr'] ?? tv.sector ?? 'N/A'),
-         description: tv['ticker-view']?.description ?? tv.description ?? s.name,
-         logo: tv['ticker-view']?.logoid
-           ? `https://s3-symbol-logo.tradingview.com/${tv['ticker-view'].logoid}.svg`
-           : null,
-         // TradingView performance metrics
-         perf1w: tv['Perf.W'] != null ? tv['Perf.W'].toFixed(2) + '%' : 'N/A',
-         perf1m: tv['Perf.1M'] != null ? tv['Perf.1M'].toFixed(2) + '%' : 'N/A',
-         perf3m: tv['Perf.3M'] != null ? tv['Perf.3M'].toFixed(2) + '%' : 'N/A',
-         perf6m: tv['Perf.6M'] != null ? tv['Perf.6M'].toFixed(2) + '%' : 'N/A',
-         perfYtd: tv['Perf.YTD'] != null ? tv['Perf.YTD'].toFixed(2) + '%' : 'N/A',
-         perf1y: tv['Perf.Y'] != null ? tv['Perf.Y'].toFixed(2) + '%' : 'N/A',
-         // Technical indicators
-         rsi: tv.RSI ?? 0,
-         ema20: tv.EMA20 ?? 0,
-         recommendation: tv['Recommend.All'] ?? tv.AnalystRating ?? 0,
-       }
-     })
-   )
+
+  // Merged, enriched stock list exposed to all views
+  const allStocks = computed(() =>
+    cseStocks.value.map(s => {
+      const tv = tvData.value[s.code] || {}
+
+      // Prefer TradingView for fundamental data if CSE is missing/zero
+      const mktCap = s.mktCap && s.mktCap !== '0' && s.mktCap !== '0.00'
+        ? s.mktCap
+        : (tv.market_cap_basic ? formatCurrency(tv.market_cap_basic) : 'N/A')
+
+      const divYieldRaw = tv.dividends_yield_current ?? tv.dividend_yield_recent
+
+      return {
+        ...s,
+        mktCap,
+        // TradingView overview enrichment
+        peRatio: tv.price_earnings_ttm != null ? tv.price_earnings_ttm.toFixed(2) : (tv.pe_ratio != null ? tv.pe_ratio.toFixed(2) : 'N/A'),
+        divYield: divYieldRaw != null
+          ? divYieldRaw.toFixed(2) + '%'
+          : 'N/A',
+        sector: s.sector !== 'N/A' && s.sector ? s.sector : (tv['sector.tr'] ?? tv.sector ?? 'N/A'),
+        description: tv['ticker-view']?.description ?? tv.description ?? s.name,
+        logo: tv['ticker-view']?.logoid
+          ? `https://s3-symbol-logo.tradingview.com/${tv['ticker-view'].logoid}.svg`
+          : null,
+        // TradingView performance metrics
+        perf1w: tv['Perf.W'] != null ? tv['Perf.W'].toFixed(2) + '%' : 'N/A',
+        perf1m: tv['Perf.1M'] != null ? tv['Perf.1M'].toFixed(2) + '%' : 'N/A',
+        perf3m: tv['Perf.3M'] != null ? tv['Perf.3M'].toFixed(2) + '%' : 'N/A',
+        perf6m: tv['Perf.6M'] != null ? tv['Perf.6M'].toFixed(2) + '%' : 'N/A',
+        perfYtd: tv['Perf.YTD'] != null ? tv['Perf.YTD'].toFixed(2) + '%' : 'N/A',
+        perf1y: tv['Perf.Y'] != null ? tv['Perf.Y'].toFixed(2) + '%' : 'N/A',
+        // Technical indicators
+        rsi: tv.RSI ?? 0,
+        ema20: tv.EMA20 ?? 0,
+        recommendation: tv['Recommend.All'] ?? tv.AnalystRating ?? 0,
+      }
+    })
+  )
 
   // Stock detail page data
   const stockDetail = ref(null)
@@ -263,7 +263,7 @@ export const useMarketStore = defineStore('market', () => {
       // Store raw CSE list
       if (cseData?.reqTradeSummery) {
         cseStocks.value = cseData.reqTradeSummery.map(mapCseItem)
-        
+
         // Calculate Breadth
         const b = { advancers: 0, decliners: 0, unchanged: 0, total: cseStocks.value.length }
         cseStocks.value.forEach(s => {
